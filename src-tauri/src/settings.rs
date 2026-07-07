@@ -410,7 +410,7 @@ pub struct AppSettings {
     pub app_language: String,
     #[serde(default)]
     pub experimental_enabled: bool,
-    #[serde(default)]
+    #[serde(default = "default_lazy_stream_close")]
     pub lazy_stream_close: bool,
     #[serde(default)]
     pub keyboard_implementation: KeyboardImplementation,
@@ -452,6 +452,15 @@ fn default_settings_schema_version() -> u32 {
 
 fn default_always_on_microphone() -> bool {
     false
+}
+
+/// Keep the microphone stream warm for a while after each dictation instead of
+/// closing it immediately. On-demand opens cost ~500ms (the OS spinning up the
+/// audio device), which otherwise lands on *every* dictation. With this on, only
+/// the first dictation after a long idle period pays that cost. Paired with the
+/// extended STREAM_IDLE_TIMEOUT in managers/audio.rs.
+fn default_lazy_stream_close() -> bool {
+    true
 }
 
 fn default_translate_to_english() -> bool {
@@ -841,7 +850,7 @@ pub fn get_default_settings() -> AppSettings {
         append_trailing_space: false,
         app_language: default_app_language(),
         experimental_enabled: false,
-        lazy_stream_close: false,
+        lazy_stream_close: true,
         keyboard_implementation: KeyboardImplementation::default(),
         show_tray_icon: default_show_tray_icon(),
         paste_delay_ms: default_paste_delay_ms(),
