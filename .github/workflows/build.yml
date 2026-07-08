@@ -493,10 +493,10 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ inputs.sign-binaries && secrets.APPLE_ID || '' }}
-          APPLE_ID_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_ID_PASSWORD || '' }}
-          APPLE_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ inputs.sign-binaries && secrets.APPLE_TEAM_ID || '' }}
+          # APPLE_ID / _PASSWORD / TEAM_ID intentionally unset for unsigned builds.
+          # Empty-but-present values make Tauri attempt notarization and fail
+          # ("Team ID must be at least 3 characters"). Absent = ad-hoc sign only,
+          # no notarization. Restore (guarded by sign-binaries) for the release.
           # NOTE (unsigned hackathon builds): APPLE_CERTIFICATE / _PASSWORD /
           # SIGNING_IDENTITY are intentionally NOT set here. Tauri's macOS bundler
           # checks env *presence* (var_os is_some), so an empty-but-set
