@@ -534,6 +534,16 @@ fn run_consumer(
     let mut recording = false;
     let mut vad_policy = VadPolicy::Offline;
 
+    // ---------- pre-roll ring buffer ------------------------------------- //
+    // While the stream is warm but not recording, keep the most recent
+    // ~PREROLL_MS of resampled 16 kHz audio. At Cmd::Start we prepend it to the
+    // capture buffer so the opening syllable is never clipped when the user
+    // starts speaking a hair before the keypress registers. Costs ~26KB at
+    // 400ms/16kHz and never touches the hot path when recording.
+    const PREROLL_MS: usize = 400;
+    let preroll_capacity = constants::WHISPER_SAMPLE_RATE as usize * PREROLL_MS / 1000;
+    let mut preroll: Vec<f32> = Vec::with_capacity(preroll_capacity + 1024);
+
     // ---------- latency instrumentation ---------------------------------- //
     // First-chunk arrival exposes the play()->samples-flowing gap; the
     // first-captured log confirms capture begins with the chunk in flight
@@ -615,6 +625,20 @@ fn run_consumer(
                     stop_flag.store(false, Ordering::Relaxed);
                     vad_policy = policy;
                     processed_samples.clear();
+                    // Prepend the pre-roll so a syllable spoken just before the
+                    // keypress isn't lost. Bypasses VAD on purpose — this leading
+                    // slice is short and we'd rather keep it than risk trimming
+                    // the onset.
+                    if !preroll.is_empty() {
+                        log::debug!(
+                            "Pre-roll: seeding {} samples (~{:.0}ms) before capture",
+                            preroll.len(),
+                            preroll.len() as f64 * 1000.0
+                                / constants::WHISPER_SAMPLE_RATE as f64
+                        );
+                        processed_samples.extend_from_slice(&preroll);
+                    }
+                    preroll.clear();
                     recording = true;
                     visualizer.reset();
                     // Reconfigure the single VAD engine for this session's policy
@@ -721,15 +745,26 @@ fn run_consumer(
         }
 
         // ---------- existing pipeline ------------------------------------ //
+        // Recording: run frames through VAD into the capture buffer.
+        // Idle (stream warm, not recording): keep the tail of resampled audio in
+        // the pre-roll ring so the next Cmd::Start can prepend it.
         frame_resampler.push(&raw, &mut |frame: &[f32]| {
-            handle_frame(
-                frame,
-                recording,
-                vad_policy,
-                &vad,
-                &audio_cb,
-                &mut processed_samples,
-            )
+            if recording {
+                handle_frame(
+                    frame,
+                    true,
+                    vad_policy,
+                    &vad,
+                    &audio_cb,
+                    &mut processed_samples,
+                );
+            } else {
+                preroll.extend_from_slice(frame);
+                if preroll.len() > preroll_capacity {
+                    let excess = preroll.len() - preroll_capacity;
+                    preroll.drain(0..excess);
+                }
+            }
         });
 
         if recording {

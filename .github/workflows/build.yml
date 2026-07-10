@@ -493,18 +493,26 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ inputs.sign-binaries && secrets.APPLE_ID || '' }}
-          APPLE_ID_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_ID_PASSWORD || '' }}
-          APPLE_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ inputs.sign-binaries && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_CERTIFICATE: ${{ inputs.sign-binaries && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ inputs.sign-binaries && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ inputs.sign-binaries && env.CERT_ID || '' }}
+          # APPLE_ID / _PASSWORD / TEAM_ID intentionally unset for unsigned builds.
+          # Empty-but-present values make Tauri attempt notarization and fail
+          # ("Team ID must be at least 3 characters"). Absent = ad-hoc sign only,
+          # no notarization. Restore (guarded by sign-binaries) for the release.
+          # NOTE (unsigned hackathon builds): APPLE_CERTIFICATE / _PASSWORD /
+          # SIGNING_IDENTITY are intentionally NOT set here. Tauri's macOS bundler
+          # checks env *presence* (var_os is_some), so an empty-but-set
+          # APPLE_CERTIFICATE makes it run `security import` on nothing and fail
+          # the whole build. With them absent, `signingIdentity: "-"` in
+          # tauri.conf.json drives a pure ad-hoc sign (no cert needed); the app
+          # still runs locally via right-click > Open. Restore these (guarded by
+          # inputs.sign-binaries) when wiring real signing for the public release.
           AZURE_CLIENT_ID: ${{ inputs.sign-binaries && secrets.AZURE_CLIENT_ID || '' }}
           AZURE_CLIENT_SECRET: ${{ inputs.sign-binaries && secrets.AZURE_CLIENT_SECRET || '' }}
           AZURE_TENANT_ID: ${{ inputs.sign-binaries && secrets.AZURE_TENANT_ID || '' }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ inputs.sign-binaries && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ inputs.sign-binaries && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+          # Updater artifact signing is disabled for unsigned test builds
+          # (bundle.createUpdaterArtifacts=false on this branch). An empty-but-set
+          # TAURI_SIGNING_PRIVATE_KEY makes Tauri try to sign and fail
+          # ("failed to decode secret key"), so it's intentionally left unset.
+          # Restore (guarded by inputs.sign-binaries) for the public release.
         with:
           tagName: ${{ inputs.release-id && format('v{0}', steps.get-version.outputs.version) || '' }}
           releaseName: ${{ inputs.release-id && format('v{0}', steps.get-version.outputs.version) || '' }}

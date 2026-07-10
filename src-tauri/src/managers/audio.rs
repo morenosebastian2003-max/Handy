@@ -17,7 +17,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::Manager;
 
-const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+// How long to keep the microphone stream warm after a dictation before closing
+// it (only when `lazy_stream_close` is on). A cold on-demand open costs ~500ms
+// (the OS spinning up the audio device); keeping the stream warm means
+// back-to-back dictations feel instant and only the first one after a long
+// pause pays the open cost. 15 minutes comfortably covers realistic "type a
+// bit, dictate a bit" sessions so the ~500ms is rarely felt.
+const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(900);
 const VAD_THRESHOLD: f32 = 0.3;
 
 fn set_mute(mute: bool) {

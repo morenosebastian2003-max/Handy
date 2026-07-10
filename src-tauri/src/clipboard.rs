@@ -61,7 +61,12 @@ fn paste_via_clipboard(
         }
     }
 
-    std::thread::sleep(std::time::Duration::from_millis(50));
+    // Wait before restoring the original clipboard. The target app reads the
+    // clipboard asynchronously when it processes the paste keystroke; restoring
+    // too soon (the old fixed 50ms) lets a busy app paste the *previous*
+    // clipboard contents instead of the transcription (#502). Wait at least
+    // 150ms, and honor a larger user-configured paste_delay_ms when set.
+    std::thread::sleep(std::time::Duration::from_millis(paste_delay_ms.max(150)));
 
     // Restore original clipboard content
     // On Wayland, prefer wl-copy for better compatibility
