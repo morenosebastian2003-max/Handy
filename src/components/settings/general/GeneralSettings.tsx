@@ -12,6 +12,7 @@ import { VolumeSlider } from "../VolumeSlider";
 import { MuteWhileRecording } from "../MuteWhileRecording";
 import { MicSensitivity } from "../MicSensitivity";
 import { ModelSettingsCard } from "./ModelSettingsCard";
+import { CamouflageCard } from "./CamouflageCard";
 import { FuwaHero } from "./FuwaHero";
 
 export const GeneralSettings: React.FC = () => {
@@ -42,6 +43,7 @@ export const GeneralSettings: React.FC = () => {
         />
         <VolumeSlider disabled={!audioFeedbackEnabled} />
       </SettingsGroup>
+      <CamouflageCard />
       <MicSensitivity />
     </div>
   );

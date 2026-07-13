@@ -878,3 +878,34 @@ input:focus-visible + .fuwa-sw {
   outline: 2px solid var(--fuwa-mint);
   outline-offset: 3px;
 }
+
+/* ---------- Chips segmentados (Modo Camuflaje, maqueta .seg) ---------- */
+.fuwa-seg {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  background: var(--glass-hi);
+  border-radius: 100px;
+  padding: 8px 15px;
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.18s;
+  box-shadow:
+    inset 0 0 0 1px rgba(8, 140, 116, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.fuwa-seg:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 0 0 1px var(--fuwa-mint),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.fuwa-seg.on {
+  background: linear-gradient(160deg, #2febc9, #0fe7c0);
+  color: #04352b;
+  box-shadow:
+    0 6px 14px -6px rgba(15, 231, 192, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}

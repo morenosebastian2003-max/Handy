@@ -593,6 +593,19 @@
       "title": "Sensibilidad del micrófono",
       "value": "{{value}}%",
       "hint": "Gira el anillo — escucha cómo sube el tono con la sensibilidad. Más alto capta voz suave; más bajo ignora el ruido de fondo."
+    },
+    "camouflage": {
+      "title": "Modo Camuflaje",
+      "description": "El formato se adapta a la app donde escribes, sin que se lo pidas.",
+      "enableHint": "Activa el post proceso para que el camuflaje se aplique a tus dictados.",
+      "modes": {
+        "email": "Email",
+        "code": "Código",
+        "notes": "Notas",
+        "slack": "Slack",
+        "prompt": "Prompt",
+        "polish": "Pulido"
+      }
     }
   },
   "footer": {
