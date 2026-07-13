@@ -287,7 +287,8 @@
           "options": {
             "none": "Keine",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Fuwa-Blase (Maskottchen)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Transkribiere...",
-    "processing": "Verarbeite..."
+    "processing": "Verarbeite...",
+    "bubble": {
+      "size": "Größe",
+      "openApp": "Fuwa öffnen"
+    }
   },
   "whatsNew": {
     "title": "Neu in Fuwa v{{version}}"

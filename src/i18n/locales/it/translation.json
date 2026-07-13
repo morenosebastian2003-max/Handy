@@ -287,7 +287,8 @@
           "options": {
             "none": "Nessuno",
             "minimal": "Minimo",
-            "live": "In tempo reale"
+            "live": "In tempo reale",
+            "bubble": "Bolla Fuwa (mascotte)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Trascrizione...",
-    "processing": "Elaborazione..."
+    "processing": "Elaborazione...",
+    "bubble": {
+      "size": "Dimensione",
+      "openApp": "Apri Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Novità in Fuwa v{{version}}"

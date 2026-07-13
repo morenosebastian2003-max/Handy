@@ -287,7 +287,8 @@
           "options": {
             "none": "Žádné",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Fuwa Bubble (mascot)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Přepisuji...",
-    "processing": "Zpracovávám..."
+    "processing": "Zpracovávám...",
+    "bubble": {
+      "size": "Size",
+      "openApp": "Open Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Novinky v Fuwa v{{version}}"

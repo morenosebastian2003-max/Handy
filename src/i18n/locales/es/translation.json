@@ -287,7 +287,8 @@
           "options": {
             "none": "Ninguna",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Burbuja Fuwa (mascota)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Transcribiendo...",
-    "processing": "Procesando..."
+    "processing": "Procesando...",
+    "bubble": {
+      "size": "Tamaño",
+      "openApp": "Abrir Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Nuevo en Fuwa v{{version}}"

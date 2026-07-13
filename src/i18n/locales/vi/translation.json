@@ -287,7 +287,8 @@
           "options": {
             "none": "Không có",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Fuwa Bubble (mascot)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "bubble": {
+      "size": "Size",
+      "openApp": "Open Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Điểm mới trong Fuwa v{{version}}"

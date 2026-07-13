@@ -14,6 +14,30 @@ pub fn cancel_operation(app: AppHandle) {
     cancel_current_operation(&app);
 }
 
+/// Toggle recording from the UI (Burbuja Fuwa click). Routes through the same
+/// coordinator input as the global shortcut and CLI `--toggle-transcription`.
+#[tauri::command]
+#[specta::specta]
+pub fn toggle_transcription(app: AppHandle) {
+    crate::signal_handle::send_transcription_input(&app, "transcribe", "bubble");
+}
+
+/// Resize the Burbuja Fuwa (right-click size picker). The frontend persists
+/// the chosen scale and restores it on boot by calling this again.
+#[tauri::command]
+#[specta::specta]
+pub fn set_bubble_scale(app: AppHandle, scale: f64) {
+    crate::overlay::apply_bubble_scale(&app, scale);
+}
+
+/// Grow/restore the bubble window while its right-click menu is open, so the
+/// menu fits even when the bubble is at its smallest size.
+#[tauri::command]
+#[specta::specta]
+pub fn set_bubble_menu_open(app: AppHandle, open: bool) {
+    crate::overlay::apply_bubble_menu_open(&app, open);
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn is_portable() -> bool {

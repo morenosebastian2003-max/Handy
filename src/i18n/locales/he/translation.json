@@ -287,7 +287,8 @@
           "options": {
             "none": "ללא",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Fuwa Bubble (mascot)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "מתמלל...",
-    "processing": "מעבד..."
+    "processing": "מעבד...",
+    "bubble": {
+      "size": "Size",
+      "openApp": "Open Fuwa"
+    }
   },
   "whatsNew": {
     "title": "חדש ב-Fuwa v{{version}}"

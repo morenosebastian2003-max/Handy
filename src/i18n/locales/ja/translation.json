@@ -287,7 +287,8 @@
           "options": {
             "none": "なし",
             "minimal": "ミニマル",
-            "live": "ライブ"
+            "live": "ライブ",
+            "bubble": "Fuwaバブル（マスコット）"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "文字起こし中…",
-    "processing": "処理中…"
+    "processing": "処理中…",
+    "bubble": {
+      "size": "サイズ",
+      "openApp": "Fuwaを開く"
+    }
   },
   "whatsNew": {
     "title": "Fuwa v{{version}} の新機能"

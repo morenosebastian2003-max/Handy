@@ -287,7 +287,8 @@
           "options": {
             "none": "Nenhum",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Bolha Fuwa (mascote)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Transcrevendo...",
-    "processing": "Processando..."
+    "processing": "Processando...",
+    "bubble": {
+      "size": "Tamanho",
+      "openApp": "Abrir Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Novidades no Fuwa v{{version}}"

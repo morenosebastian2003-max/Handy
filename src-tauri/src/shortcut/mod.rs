@@ -603,17 +603,30 @@ pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(),
         "none" => OverlayStyle::None,
         "minimal" => OverlayStyle::Minimal,
         "live" => OverlayStyle::Live,
+        "bubble" => OverlayStyle::Bubble,
         other => {
             warn!("Invalid overlay style '{}', defaulting to minimal", other);
             OverlayStyle::Minimal
         }
     };
+    let was_bubble = settings.overlay_style == OverlayStyle::Bubble;
     settings.overlay_style = parsed;
     settings::write_settings(&app, settings);
 
     // Keep the cached overlay-enabled flag in sync so emit_levels stops (or
     // resumes) emitting on the next audio callback.
     crate::overlay::update_overlay_enabled_cache(parsed != OverlayStyle::None);
+
+    if parsed == OverlayStyle::Bubble {
+        // The bubble is persistent: bring it up right away in idle state.
+        crate::overlay::show_bubble_idle(&app);
+    } else if was_bubble {
+        // Leaving bubble mode: the persistent window must go away.
+        if let Some(w) = app.get_webview_window("recording_overlay") {
+            let _ = w.emit("hide-overlay", ());
+            let _ = w.hide();
+        }
+    }
 
     // Reposition in case the window needs to re-center for the new style.
     crate::utils::update_overlay_position(&app);

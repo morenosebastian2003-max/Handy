@@ -287,7 +287,8 @@
           "options": {
             "none": "无",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Fuwa气泡（吉祥物）"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "正在转录...",
-    "processing": "处理中..."
+    "processing": "处理中...",
+    "bubble": {
+      "size": "大小",
+      "openApp": "打开 Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Fuwa v{{version}} 新功能"

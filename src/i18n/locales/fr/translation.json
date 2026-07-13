@@ -287,7 +287,8 @@
           "options": {
             "none": "Aucune",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Bulle Fuwa (mascotte)"
           }
         },
         "position": {
@@ -629,7 +630,11 @@
   },
   "overlay": {
     "transcribing": "Transcription...",
-    "processing": "Traitement..."
+    "processing": "Traitement...",
+    "bubble": {
+      "size": "Taille",
+      "openApp": "Ouvrir Fuwa"
+    }
   },
   "whatsNew": {
     "title": "Nouveautés de Fuwa v{{version}}"

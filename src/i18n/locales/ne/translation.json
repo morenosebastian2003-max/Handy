@@ -287,7 +287,8 @@
           "options": {
             "none": "कुनै होइन",
             "minimal": "मिनिमल",
-            "live": "लाइभ"
+            "live": "लाइभ",
+            "bubble": "Fuwa Bubble (mascot)"
           }
         },
         "position": {
@@ -632,6 +633,10 @@
   },
   "overlay": {
     "transcribing": "ट्रान्सक्राइब गरिँदैछ...",
-    "processing": "प्रशोधन गरिँदैछ..."
+    "processing": "प्रशोधन गरिँदैछ...",
+    "bubble": {
+      "size": "Size",
+      "openApp": "Open Fuwa"
+    }
   }
 }

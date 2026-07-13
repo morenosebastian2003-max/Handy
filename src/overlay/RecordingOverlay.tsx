@@ -11,8 +11,14 @@ import type {
 } from "@/bindings";
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
+import FuwaBubble from "./FuwaBubble";
 
-type OverlayState = "recording" | "streaming" | "transcribing" | "processing";
+type OverlayState =
+  | "idle"
+  | "recording"
+  | "streaming"
+  | "transcribing"
+  | "processing";
 
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
@@ -36,6 +42,8 @@ const RecordingOverlay: React.FC = () => {
   // Overlay placement (top vs bottom of the screen). The Live panel grows downward
   // from a top overlay (oldest line under the pill) and upward from a bottom one.
   const [position, setPosition] = useState<"top" | "bottom">("bottom");
+  // Burbuja Fuwa mode: the persistent mascot bubble replaces the pill forms.
+  const [bubbleStyle, setBubbleStyle] = useState(false);
   // True once live text overflows the cap. A top overlay fades its top edge only
   // while overflowing, so the resting first line stays crisp flush under the pill.
   const [overflowing, setOverflowing] = useState(false);
@@ -59,6 +67,9 @@ const RecordingOverlay: React.FC = () => {
           if (settings.status === "ok") {
             setPosition(
               settings.data.overlay_position === "top" ? "top" : "bottom",
+            );
+            setBubbleStyle(
+              (settings.data.overlay_style as string) === "bubble",
             );
           }
         } catch {
@@ -114,6 +125,25 @@ const RecordingOverlay: React.FC = () => {
     };
 
     setupEventListeners();
+
+    // Bubble self-init: if the persistent bubble is the active style, render
+    // it immediately — the boot-time "show-overlay idle" event may fire before
+    // this webview's listeners are ready.
+    (async () => {
+      try {
+        const settings = await commands.getAppSettings();
+        if (
+          settings.status === "ok" &&
+          (settings.data.overlay_style as string) === "bubble"
+        ) {
+          setBubbleStyle(true);
+          setIsVisible(true);
+          setState("idle");
+        }
+      } catch {
+        // Not fatal; the show-overlay event will initialize us instead.
+      }
+    })();
   }, []);
 
   // Elapsed timer while the Live overlay is visible.
@@ -257,6 +287,19 @@ const RecordingOverlay: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  // ---- Burbuja Fuwa: the persistent mascot bubble (idle / recording /
+  // transcribing / processing). Streaming still uses the Live panel above.
+  if (bubbleStyle) {
+    // `state` can no longer be "streaming" here (handled by the Live panel
+    // above), so it maps 1:1 onto the bubble's states.
+    return <FuwaBubble state={state} levels={levels} />;
+  }
+
+  if (state === "idle") {
+    // Idle only exists for the bubble; other styles render nothing.
+    return null;
   }
 
   // ---- Minimal overlay: exactly one row at a time — waveform (recording), or a

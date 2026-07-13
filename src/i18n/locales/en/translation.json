@@ -287,7 +287,8 @@
           "options": {
             "none": "None",
             "minimal": "Minimal",
-            "live": "Live"
+            "live": "Live",
+            "bubble": "Fuwa Bubble (mascot)"
           }
         },
         "position": {
@@ -632,6 +633,10 @@
   },
   "overlay": {
     "transcribing": "Transcribing...",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "bubble": {
+      "size": "Size",
+      "openApp": "Open Fuwa"
+    }
   }
 }

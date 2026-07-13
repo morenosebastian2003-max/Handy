@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "./styles/theme.css";
 
+/* Fuwa brand fonts (bundled, no CDN) */
+@import "@fontsource/fredoka/500.css";
+@import "@fontsource/fredoka/600.css";
+@import "@fontsource/nunito/400.css";
+@import "@fontsource/nunito/600.css";
+@import "@fontsource/nunito/700.css";
+@import "@fontsource/space-mono/400.css";
+
 /* Register the shared color tokens (src/styles/theme.css) as Tailwind
    utilities */
 @theme inline {
@@ -11,10 +19,14 @@
   --color-logo-stroke: var(--color-logo-stroke);
   --color-text-stroke: var(--color-text-stroke);
   --color-mid-gray: var(--color-mid-gray);
+  --font-display: "Fredoka", "Nunito", sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
 }
 
 :root {
   /* Typography */
+  font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
   font-size: 15px;
   line-height: 24px;
   font-weight: 400;
@@ -123,4 +135,33 @@
   fill: var(--color-logo-stroke);
   stroke: var(--color-logo-stroke);
   stroke-width: 1;
+}
+
+/* Fuwa mascot parts (see components/icons/FuwaMascot.tsx) */
+.fuwa-body {
+  fill: var(--fuwa-mint);
+}
+
+.fuwa-ink {
+  fill: var(--light-color-logo-stroke);
+}
+
+.fuwa-ink-stroke {
+  stroke: var(--light-color-logo-stroke);
+}
+
+.fuwa-cheek {
+  fill: var(--fuwa-violet);
+  opacity: 0.45;
+}
+
+/* Wordmark: Fredoka + degradado firma (menta → aqua → violeta), per the
+   línea gráfica. background-clip:text keeps it crisp in light and dark. */
+.fuwa-wordmark {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--fuwa-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

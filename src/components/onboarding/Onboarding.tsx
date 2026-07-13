@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import type { ModelInfo } from "@/bindings";
 import type { ModelCardStatus } from "./ModelCard";
 import ModelCard, { isLegacySource } from "./ModelCard";
-import HandyTextLogo from "../icons/HandyTextLogo";
+import FuwaTextLogo from "../icons/FuwaTextLogo";
 import { useModelStore } from "../../stores/modelStore";
 
 interface OnboardingProps {
@@ -23,6 +23,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
     extractingModels,
     downloadProgress,
     downloadStats,
+    cancelDownload,
   } = useModelStore();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -111,6 +112,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
     }
   };
 
+  const handleCancelDownload = async (modelId: string) => {
+    const success = await cancelDownload(modelId);
+    if (success) {
+      setSelectedModelId(null);
+    }
+  };
+
   const handleSelectExistingModel = (modelId: string) => {
     setSelectedModelId(modelId);
   };
@@ -138,7 +146,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   return (
     <div className="h-screen w-screen flex flex-col p-6 gap-4 inset-0">
       <div className="flex flex-col items-center gap-2 shrink-0">
-        <HandyTextLogo width={200} />
+        <FuwaTextLogo width={200} />
         <p className="text-text/70 max-w-md font-medium mx-auto">
           {t("onboarding.subtitle")}
         </p>
@@ -185,6 +193,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
                   disabled={isBusy}
                   onSelect={handleDownloadModel}
                   onDownload={handleDownloadModel}
+                  onCancel={handleCancelDownload}
                   downloadProgress={getModelDownloadProgress(model.id)}
                   downloadSpeed={getModelDownloadSpeed(model.id)}
                   showRecommended={false}
@@ -199,6 +208,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
                   disabled={isBusy}
                   onSelect={handleDownloadModel}
                   onDownload={handleDownloadModel}
+                  onCancel={handleCancelDownload}
                   downloadProgress={getModelDownloadProgress(model.id)}
                   downloadSpeed={getModelDownloadSpeed(model.id)}
                   showRecommended={false}
@@ -233,6 +243,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
                     disabled={isBusy}
                     onSelect={handleDownloadModel}
                     onDownload={handleDownloadModel}
+                    onCancel={handleCancelDownload}
                     downloadProgress={getModelDownloadProgress(model.id)}
                     downloadSpeed={getModelDownloadSpeed(model.id)}
                     showRecommended={false}

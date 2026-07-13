@@ -28,6 +28,10 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
         value: "live",
         label: t("settings.advanced.overlay.style.options.live"),
       },
+      {
+        value: "bubble",
+        label: t("settings.advanced.overlay.style.options.bubble"),
+      },
     ];
 
     const positionOptions = [

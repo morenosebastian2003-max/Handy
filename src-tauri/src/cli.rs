@@ -2,7 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug, Clone, Default)]
-#[command(name = "fuwa", about = "Fuwa - Speech to Text")]
+#[command(name = "fuwa", about = "Fuwa - Dictado por voz 100% local")]
 pub struct CliArgs {
     /// Start with the main window hidden
     #[arg(long)]
