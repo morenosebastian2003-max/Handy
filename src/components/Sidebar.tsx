@@ -104,7 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
 
   return (
-    <div className="glass-card rounded-[28px] flex flex-col w-44 shrink-0 my-3 ms-3 items-center px-2.5 py-3 overflow-y-auto overflow-x-hidden">
+    <div className="glass-card rounded-[28px] flex flex-col w-44 lg:w-[236px] shrink-0 my-3 ms-3 items-center px-2.5 py-3 overflow-y-auto overflow-x-hidden">
       <FuwaTextLogo width={110} className="m-3 relative z-[1]" />
       <div className="flex flex-col w-full items-center gap-1.5 pt-2 relative z-[1]">
         {availableSections.map((section) => {

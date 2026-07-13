@@ -909,3 +909,33 @@ input:focus-visible + .fuwa-sw {
     0 6px 14px -6px rgba(15, 231, 192, 0.9),
     inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
+
+/* ---------- Layout Command Center: Fuwa persistente al centro ---------- */
+/* 3 columnas de la maqueta: [sidebar] | [hero en vivo] | [panel ~400-460px
+   con scroll propio]. Bajo lg (1024px) colapsa a 2 columnas: el hero se
+   vuelve una fila compacta arriba del panel (ver FuwaHero.tsx). */
+.fuwa-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(400px, 38vw, 460px);
+  gap: 14px;
+  padding: 12px;
+  min-height: 0;
+}
+.fuwa-panel {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 2px;
+}
+@media (max-width: 1023.98px) {
+  .fuwa-main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .fuwa-panel {
+    flex: 1;
+  }
+}

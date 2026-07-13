@@ -14,6 +14,7 @@ import Footer from "./components/footer";
 import LiquidBackground from "./components/LiquidBackground";
 import { installRipple } from "./lib/ripple";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
+import { FuwaHero } from "./components/FuwaHero";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { WhatsNewGate } from "./components/whats-new";
 import { useSettings } from "./hooks/useSettings";
@@ -296,19 +297,20 @@ function App() {
         className="h-screen flex flex-col select-none cursor-default"
       >
         <WhatsNewGate />
-        {/* Main content area that takes remaining space */}
+        {/* Orden de la maqueta, siempre: [sidebar] | [Fuwa en vivo] | [cards
+            de la sección activa]. Bajo el umbral lg colapsa a 2 columnas con
+            el hero compacto arriba del panel (.fuwa-main en App.css). */}
         <div className="flex-1 flex overflow-hidden">
           <Sidebar
             activeSection={currentSection}
             onSectionChange={setCurrentSection}
           />
-          {/* Scrollable content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto">
-              <div className="flex flex-col items-center p-4 gap-4">
-                <AccessibilityPermissions />
-                {renderSettingsContent(currentSection)}
-              </div>
+          <div className="fuwa-main flex-1 min-w-0">
+            <FuwaHero activeSection={currentSection} />
+            {/* Panel derecho con scroll propio */}
+            <div className="fuwa-panel">
+              <AccessibilityPermissions />
+              {renderSettingsContent(currentSection)}
             </div>
           </div>
         </div>

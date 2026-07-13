@@ -13,7 +13,6 @@ import { MuteWhileRecording } from "../MuteWhileRecording";
 import { MicSensitivity } from "../MicSensitivity";
 import { ModelSettingsCard } from "./ModelSettingsCard";
 import { CamouflageCard } from "./CamouflageCard";
-import { FuwaHero } from "./FuwaHero";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -22,7 +21,6 @@ export const GeneralSettings: React.FC = () => {
   const isLinux = type() === "linux";
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <FuwaHero />
       <SettingsGroup title={t("settings.general.title")}>
         <ShortcutInput shortcutId="transcribe" grouped={true} />
         <PushToTalk descriptionMode="tooltip" grouped={true} />
