@@ -17,17 +17,18 @@ const FuwaMascot = ({
   width = 32,
   className,
 }: {
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
   className?: string;
 }) => {
-  const k = width / BODY_W;
+  const w = typeof width === "number" ? width : parseFloat(width) || 32;
+  const k = w / BODY_W;
   return (
     <div
       className={`fuwa-mascot ${className ?? ""}`}
-      style={{ width, height: Math.round(BODY_H * k) }}
+      style={{ width: w, height: Math.round(BODY_H * k) }}
     >
-      <img src={fuwaBody} alt="" draggable={false} width={width} />
+      <img src={fuwaBody} alt="" draggable={false} width={w} />
       <div
         className="fuwa-mascot-screen"
         style={{
