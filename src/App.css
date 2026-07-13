@@ -137,31 +137,70 @@
   stroke-width: 1;
 }
 
-/* Fuwa mascot parts (see components/icons/FuwaMascot.tsx) */
-.fuwa-body {
-  fill: var(--fuwa-mint);
+/* Fuwa mascot (components/icons/FuwaMascot.tsx): the render's screen is
+   blank — the face is drawn by software, same as the bubble and landing. */
+.fuwa-mascot {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-.fuwa-ink {
-  fill: var(--light-color-logo-stroke);
+.fuwa-mascot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
 }
 
-.fuwa-ink-stroke {
-  stroke: var(--light-color-logo-stroke);
+.fuwa-mascot-screen {
+  position: absolute;
+  background: #08211c;
+  box-shadow:
+    inset 0 1px 4px rgba(0, 0, 0, 0.6),
+    0 0 8px rgba(53, 240, 206, 0.15);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
 
-.fuwa-cheek {
-  fill: var(--fuwa-violet);
-  opacity: 0.45;
+.fuwa-mascot-screen svg {
+  width: 100%;
+  height: 100%;
 }
 
-/* Wordmark: Fredoka + degradado firma (menta → aqua → violeta), per the
-   línea gráfica. background-clip:text keeps it crisp in light and dark. */
+.fuwa-mascot-glow {
+  stroke: #35f0ce;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px #35f0ce);
+}
+
+.fuwa-mascot-eyes {
+  transform-origin: center;
+  animation: fuwa-blink 4.2s infinite;
+}
+
+@keyframes fuwa-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Wordmark: Fredoka 700 con el 3D menta de la línea gráfica — el mismo
+   degradado y relieve que usa la landing. Ley es ley. */
 .fuwa-wordmark {
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  background: var(--fuwa-gradient);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #2febc9, #10d9b6 58%, #08b398);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 1.5px 0 #0aa98c) drop-shadow(0 3px 0 #077a66)
+    drop-shadow(0 5px 4px rgba(8, 120, 100, 0.35));
 }
