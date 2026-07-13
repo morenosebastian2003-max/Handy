@@ -192,15 +192,20 @@
   }
 }
 
-/* Wordmark: Fredoka 700 con el 3D menta de la línea gráfica — el mismo
-   degradado y relieve que usa la landing. Ley es ley. */
+/* Wordmark: el logo Fuwa del hero de la landing — Fredoka 700, degradado
+   menta y extrusión 3D escalonada. Las sombras van en em para que el relieve
+   escale idéntico a cualquier tamaño (en el hero: 3/6/9/12px a ~150px de
+   fuente = 0.02em por capa). Ley es ley. */
 .fuwa-wordmark {
+  font-family: "Fredoka", sans-serif;
   font-weight: 700;
   letter-spacing: -0.01em;
+  line-height: 0.86;
   background: linear-gradient(180deg, #2febc9, #10d9b6 58%, #08b398);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 1.5px 0 #0aa98c) drop-shadow(0 3px 0 #077a66)
-    drop-shadow(0 5px 4px rgba(8, 120, 100, 0.35));
+  filter: drop-shadow(0 0.02em 0 #0aa98c) drop-shadow(0 0.04em 0 #099177)
+    drop-shadow(0 0.06em 0 #077a66) drop-shadow(0 0.08em 0 #066657)
+    drop-shadow(0 0.17em 0.16em rgba(8, 120, 100, 0.4));
 }
