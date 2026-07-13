@@ -15,7 +15,9 @@
     "postProcessing": "後處理",
     "history": "歷史紀錄",
     "debug": "偵錯",
-    "about": "關於"
+    "about": "關於",
+    "uiSoundsOn": "Interface sounds on — click to mute",
+    "uiSoundsOff": "Interface sounds muted — click to enable"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import FuwaFaceMascot from "../../FuwaFaceMascot";
 import type { FuwaFaceState } from "@/lib/fuwaFaces";
+import { chirp } from "@/lib/uiSounds";
 
 type HeroState = "idle" | "listen" | "think" | "done";
 
@@ -21,6 +22,14 @@ const FACE_FOR: Record<HeroState, FuwaFaceState> = {
   listen: "listen",
   think: "think",
   done: "done",
+};
+
+// Frecuencias del chirp por estado — mismas que la statebar de la maqueta.
+const CHIRP_FOR: Record<HeroState, number> = {
+  idle: 520,
+  listen: 660,
+  think: 440,
+  done: 740,
 };
 
 const KEYS: Record<HeroState, { title: string; subtitle: string }> = {
@@ -50,18 +59,27 @@ const KEYS: Record<HeroState, { title: string; subtitle: string }> = {
 export const FuwaHero: React.FC = () => {
   const { t } = useTranslation();
   const [state, setState] = useState<HeroState>("idle");
+  const stateRef = useRef<HeroState>("idle");
   const doneTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    // Fija el estado y chirpea cuando de verdad cambia (silent para las
+    // vueltas automáticas a reposo, que ya vienen precedidas de su chirp).
+    const commit = (next: HeroState, silent = false) => {
+      if (stateRef.current !== next && !silent) chirp(CHIRP_FOR[next]);
+      stateRef.current = next;
+      setState(next);
+    };
+
     const apply = (next: "idle" | "listen" | "think") => {
       window.clearTimeout(doneTimer.current);
-      setState((prev) => {
-        if ((prev === "think" || prev === "done") && next === "idle") {
-          doneTimer.current = window.setTimeout(() => setState("idle"), 900);
-          return "done";
-        }
-        return next;
-      });
+      const prev = stateRef.current;
+      if ((prev === "think" || prev === "done") && next === "idle") {
+        commit("done");
+        doneTimer.current = window.setTimeout(() => commit("idle", true), 900);
+        return;
+      }
+      commit(next);
     };
 
     const unShow = listen<string>("show-overlay", (event) => {

@@ -15,7 +15,9 @@
     "postProcessing": "Постобработка",
     "history": "История",
     "debug": "Отстраняване",
-    "about": "За приложението"
+    "about": "За приложението",
+    "uiSoundsOn": "Interface sounds on — click to mute",
+    "uiSoundsOff": "Interface sounds muted — click to enable"
   },
   "onboarding": {
     "subtitle": "За да започнете, изберете модел за транскрипция",

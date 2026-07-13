@@ -15,7 +15,9 @@
     "postProcessing": "Постобробка",
     "history": "Історія",
     "debug": "Дебаг",
-    "about": "Інфо"
+    "about": "Інфо",
+    "uiSoundsOn": "Interface sounds on — click to mute",
+    "uiSoundsOff": "Interface sounds muted — click to enable"
   },
   "onboarding": {
     "subtitle": "Для початку оберіть модель транскрипції",

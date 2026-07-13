@@ -15,7 +15,9 @@
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
     "debug": "Debug",
-    "about": "Info"
+    "about": "Info",
+    "uiSoundsOn": "Interface sounds on — click to mute",
+    "uiSoundsOff": "Interface sounds muted — click to enable"
   },
   "onboarding": {
     "subtitle": "Wähle ein Transkriptionsmodell, um loszulegen",

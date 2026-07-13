@@ -15,7 +15,9 @@
     "postProcessing": "Postproces",
     "history": "Historia",
     "debug": "Debugowanie",
-    "about": "O programie"
+    "about": "O programie",
+    "uiSoundsOn": "Interface sounds on — click to mute",
+    "uiSoundsOff": "Interface sounds muted — click to enable"
   },
   "onboarding": {
     "subtitle": "Aby rozpocząć, wybierz model transkrypcji",

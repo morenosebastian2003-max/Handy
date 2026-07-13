@@ -15,7 +15,9 @@
     "postProcessing": "Post Proceso",
     "history": "Historial",
     "debug": "Depuración",
-    "about": "Acerca de"
+    "about": "Acerca de",
+    "uiSoundsOn": "Sonidos de la interfaz activados — clic para silenciar",
+    "uiSoundsOff": "Sonidos de la interfaz silenciados — clic para activarlos"
   },
   "onboarding": {
     "subtitle": "Para comenzar, elige un modelo de transcripción",

@@ -1,9 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Cog, FlaskConical, History, Info, Sparkles, Cpu } from "lucide-react";
+import {
+  Cog,
+  FlaskConical,
+  History,
+  Info,
+  Sparkles,
+  Cpu,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import FuwaTextLogo from "./icons/FuwaTextLogo";
 import FuwaMascot from "./icons/FuwaMascot";
 import { useSettings } from "../hooks/useSettings";
+import { isUiSoundEnabled, tick, toggleUiSound } from "../lib/uiSounds";
 import {
   GeneralSettings,
   AdvancedSettings,
@@ -87,6 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { t } = useTranslation();
   const { settings } = useSettings();
+  const [soundOn, setSoundOn] = useState(isUiSoundEnabled);
 
   const availableSections = Object.entries(SECTIONS_CONFIG)
     .filter(([_, config]) => config.enabled(settings))
@@ -104,7 +115,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div
               key={section.id}
               className={`fuwa-nav nav-item ${isActive ? "on" : ""}`}
-              onClick={() => onSectionChange(section.id)}
+              onClick={() => {
+                if (!isActive) tick();
+                onSectionChange(section.id);
+              }}
             >
               <span className="fuwa-nav-chip">
                 <Icon width={17} height={17} className="shrink-0" />
@@ -118,6 +132,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           );
         })}
+      </div>
+      {/* Botoncito discreto de sonidos de UI (preferencia en localStorage) */}
+      <div className="mt-auto w-full flex justify-center pt-3 relative z-[1]">
+        <button
+          type="button"
+          className={`fuwa-sndbtn ${soundOn ? "" : "off"}`}
+          title={soundOn ? t("sidebar.uiSoundsOn") : t("sidebar.uiSoundsOff")}
+          aria-label={
+            soundOn ? t("sidebar.uiSoundsOn") : t("sidebar.uiSoundsOff")
+          }
+          onClick={() => setSoundOn(toggleUiSound())}
+        >
+          {soundOn ? <Volume2 size={15} /> : <VolumeX size={15} />}
+        </button>
       </div>
     </div>
   );

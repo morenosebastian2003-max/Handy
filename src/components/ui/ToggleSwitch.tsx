@@ -1,5 +1,6 @@
 import React from "react";
 import { SettingContainer } from "./SettingContainer";
+import { popS } from "@/lib/uiSounds";
 
 interface ToggleSwitchProps {
   checked: boolean;
@@ -42,7 +43,10 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
           className="sr-only peer"
           checked={checked}
           disabled={disabled || isUpdating}
-          onChange={(e) => onChange(e.target.checked)}
+          onChange={(e) => {
+            popS();
+            onChange(e.target.checked);
+          }}
         />
         <div className="fuwa-sw"></div>
       </label>
