@@ -10,6 +10,7 @@ import { AudioFeedback } from "../AudioFeedback";
 import { useSettings } from "../../../hooks/useSettings";
 import { VolumeSlider } from "../VolumeSlider";
 import { MuteWhileRecording } from "../MuteWhileRecording";
+import { MicSensitivity } from "../MicSensitivity";
 import { ModelSettingsCard } from "./ModelSettingsCard";
 import { FuwaHero } from "./FuwaHero";
 
@@ -41,6 +42,7 @@ export const GeneralSettings: React.FC = () => {
         />
         <VolumeSlider disabled={!audioFeedbackEnabled} />
       </SettingsGroup>
+      <MicSensitivity />
     </div>
   );
 };

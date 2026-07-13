@@ -588,6 +588,11 @@
           "details": "Fuwa को स्थानीय स्पिच-टु-टेक्स्ट transcribe.cpp र ggml मा आधारित छ। Georgi Gerganov र योगदानकर्ताहरूको उत्कृष्ट कामका लागि धन्यवाद।"
         }
       }
+    },
+    "micSensitivity": {
+      "title": "Microphone sensitivity",
+      "value": "{{value}}%",
+      "hint": "Turn the ring — hear the pitch rise with the sensitivity. Higher picks up soft voices; lower ignores background noise."
     }
   },
   "footer": {

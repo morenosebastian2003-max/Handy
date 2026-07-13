@@ -588,6 +588,11 @@
         "label": "새 소식 표시",
         "description": "Fuwa 업데이트 후 릴리스 노트를 표시합니다"
       }
+    },
+    "micSensitivity": {
+      "title": "Microphone sensitivity",
+      "value": "{{value}}%",
+      "hint": "Turn the ring — hear the pitch rise with the sensitivity. Higher picks up soft voices; lower ignores background noise."
     }
   },
   "footer": {

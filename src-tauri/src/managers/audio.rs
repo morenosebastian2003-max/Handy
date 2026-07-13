@@ -18,7 +18,13 @@ use std::time::{Duration, Instant};
 use tauri::Manager;
 
 const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
-const VAD_THRESHOLD: f32 = 0.3;
+
+/// Mapea la sensibilidad del usuario (0-100) al umbral del Silero VAD.
+/// Lineal e invertido: 0 → 0.9 (exige voz muy clara), 100 → 0.1 (capta voz
+/// suave). El default 70 da ~0.34, prácticamente el antiguo fijo de 0.3.
+fn vad_threshold_from_sensitivity(sensitivity: u8) -> f32 {
+    0.9 - (sensitivity.min(100) as f32 / 100.0) * 0.8
+}
 
 fn set_mute(mute: bool) {
     // Expected behavior:
@@ -130,13 +136,14 @@ pub enum MicrophoneMode {
 
 fn create_audio_recorder(
     vad_path: &Path,
+    vad_threshold: f32,
     app_handle: &tauri::AppHandle,
     stream_router: Arc<StreamRouter>,
 ) -> Result<AudioRecorder, anyhow::Error> {
     // A single Silero engine covers both the offline and streaming policies (never
     // active at once within a recording), so the recorder reconfigures its
     // hangover tail per session rather than keeping two ONNX sessions resident.
-    let silero = SileroVad::new(vad_path, VAD_THRESHOLD)
+    let silero = SileroVad::new(vad_path, vad_threshold)
         .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
     let smoothed_vad = SmoothedVad::new(
         Box::new(silero),
@@ -357,8 +364,10 @@ impl AudioRecordingManager {
                     tauri::path::BaseDirectory::Resource,
                 )
                 .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {}", e))?;
+            let settings = get_settings(&self.app_handle);
             *recorder_opt = Some(create_audio_recorder(
                 &vad_path,
+                vad_threshold_from_sensitivity(settings.vad_sensitivity),
                 &self.app_handle,
                 Arc::clone(&self.stream_router),
             )?);
@@ -511,6 +520,47 @@ impl AudioRecordingManager {
         } else {
             Err("Already recording".to_string())
         }
+    }
+
+    /// Drops the current recorder so the next `preload_vad` rebuilds it with
+    /// fresh settings (e.g. a new VAD threshold). Callers must ensure no
+    /// recording is in flight and the stream is closed.
+    fn reset_recorder(&self) {
+        *self.recorder.lock().unwrap() = None;
+    }
+
+    /// Applies a new VAD sensitivity by recreating the recorder. Mirrors the
+    /// `update_selected_device` pattern: if the stream is open it is stopped
+    /// first, then reopened according to the current microphone mode. Holding
+    /// the state lock serializes against `try_start_recording` and the lazy
+    /// close thread (neither `stop_microphone_stream` nor
+    /// `start_microphone_stream` take it, so no deadlock).
+    pub fn update_vad_sensitivity(&self) -> Result<(), anyhow::Error> {
+        let state = self.state.lock().unwrap();
+        if !matches!(*state, RecordingState::Idle) {
+            // Never tear the recorder down mid-recording; the new threshold
+            // is already persisted and applies on the next rebuild.
+            warn!("VAD sensitivity changed while recording; applying on next recorder rebuild");
+            return Ok(());
+        }
+
+        let was_open = *self.is_open.lock().unwrap();
+        if was_open {
+            self.close_generation.fetch_add(1, Ordering::SeqCst);
+            self.stop_microphone_stream();
+        }
+
+        self.reset_recorder();
+        self.preload_vad()?;
+
+        // Reopen when the stream should stay live: always-on mode, or an
+        // on-demand stream that was open (inside its lazy-close window).
+        if was_open || matches!(*self.mode.lock().unwrap(), MicrophoneMode::AlwaysOn) {
+            self.start_microphone_stream()?;
+        }
+
+        info!("VAD sensitivity applied; recorder recreated");
+        Ok(())
     }
 
     pub fn update_selected_device(&self) -> Result<(), anyhow::Error> {

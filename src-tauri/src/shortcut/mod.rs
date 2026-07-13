@@ -16,8 +16,11 @@ mod tauri_impl;
 use log::{error, info, warn};
 use serde::Serialize;
 use specta::Type;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
+
+use crate::managers::audio::AudioRecordingManager;
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
@@ -1209,6 +1212,22 @@ pub fn change_vad_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), S
     let mut settings = settings::get_settings(&app);
     settings.vad_enabled = enabled;
     settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_vad_sensitivity_setting(app: AppHandle, value: u8) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.vad_sensitivity = value.min(100);
+    settings::write_settings(&app, settings);
+
+    // Recreate the recorder so the new Silero threshold takes effect now
+    // (safely: see AudioRecordingManager::update_vad_sensitivity).
+    let rm = app.state::<Arc<AudioRecordingManager>>();
+    rm.update_vad_sensitivity()
+        .map_err(|e| format!("Failed to apply VAD sensitivity: {}", e))?;
+
     Ok(())
 }
 

@@ -643,8 +643,7 @@ fn run_consumer(
                         let preroll_samples: Vec<f32> = preroll.drain(..).collect();
                         log::debug!(
                             "prepending {}ms of pre-roll audio to recording",
-                            preroll_samples.len() * 1000
-                                / constants::WHISPER_SAMPLE_RATE as usize
+                            preroll_samples.len() * 1000 / constants::WHISPER_SAMPLE_RATE as usize
                         );
                         processed_samples.extend_from_slice(&preroll_samples);
                         if let Some(cb) = &audio_cb {

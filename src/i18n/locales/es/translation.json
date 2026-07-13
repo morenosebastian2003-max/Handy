@@ -588,6 +588,11 @@
         "label": "Mostrar novedades",
         "description": "Mostrar notas de la versión después de las actualizaciones de Fuwa"
       }
+    },
+    "micSensitivity": {
+      "title": "Sensibilidad del micrófono",
+      "value": "{{value}}%",
+      "hint": "Gira el anillo — escucha cómo sube el tono con la sensibilidad. Más alto capta voz suave; más bajo ignora el ruido de fondo."
     }
   },
   "footer": {

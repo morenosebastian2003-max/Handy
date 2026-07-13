@@ -463,6 +463,11 @@ pub struct AppSettings {
     pub extra_recording_buffer_ms: u64,
     #[serde(default = "default_vad_enabled")]
     pub vad_enabled: bool,
+    /// Sensibilidad del micrófono (0-100). Se mapea linealmente al umbral del
+    /// Silero VAD: 0 → 0.9 (solo voz muy clara) … 100 → 0.1 (capta voz suave).
+    /// El default 70 equivale a ~0.34, el antiguo umbral fijo de 0.3.
+    #[serde(default = "default_vad_sensitivity")]
+    pub vad_sensitivity: u8,
     /// Which recording overlay to show: None / Minimal / Live. Streaming mode is
     /// not gated on this — that follows model capability. Migrated from the old
     /// `overlay_position` (position `none` → style `None`).
@@ -539,6 +544,10 @@ fn default_overlay_style() -> OverlayStyle {
     return OverlayStyle::None;
     #[cfg(not(target_os = "linux"))]
     return OverlayStyle::Bubble;
+}
+
+fn default_vad_sensitivity() -> u8 {
+    70
 }
 
 fn default_vad_enabled() -> bool {
@@ -958,6 +967,7 @@ pub fn get_default_settings() -> AppSettings {
         transcribe_gpu_device: default_transcribe_gpu_device(),
         extra_recording_buffer_ms: 0,
         vad_enabled: default_vad_enabled(),
+        vad_sensitivity: default_vad_sensitivity(),
         overlay_style: default_overlay_style(),
     }
 }

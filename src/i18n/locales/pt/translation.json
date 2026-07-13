@@ -588,6 +588,11 @@
         "label": "Mostrar novidades",
         "description": "Mostrar notas de versão após atualizações do Fuwa"
       }
+    },
+    "micSensitivity": {
+      "title": "Microphone sensitivity",
+      "value": "{{value}}%",
+      "hint": "Turn the ring — hear the pitch rise with the sensitivity. Higher picks up soft voices; lower ignores background noise."
     }
   },
   "footer": {
