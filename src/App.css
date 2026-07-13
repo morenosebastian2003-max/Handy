@@ -93,6 +93,12 @@
   --glass-shadow: var(--light-glass-shadow);
   --glass-shadow-hover: var(--light-glass-shadow-hover);
   --glass-sheen: var(--light-glass-sheen);
+  --glass-rim-top: var(--light-glass-rim-top);
+  --glass-edge-bottom: var(--light-glass-edge-bottom);
+  --glass-rim-sub: var(--light-glass-rim-sub);
+  --glass-cast-lg: var(--light-glass-cast-lg);
+  --glass-cast-md: var(--light-glass-cast-md);
+  --caustic-mint: var(--light-caustic-mint);
   --blob-fade: var(--light-blob-fade);
   --wave-ink: var(--light-wave-ink);
   --sw-off: var(--light-sw-off);
@@ -114,6 +120,12 @@
   --glass-shadow: var(--dark-glass-shadow);
   --glass-shadow-hover: var(--dark-glass-shadow-hover);
   --glass-sheen: var(--dark-glass-sheen);
+  --glass-rim-top: var(--dark-glass-rim-top);
+  --glass-edge-bottom: var(--dark-glass-edge-bottom);
+  --glass-rim-sub: var(--dark-glass-rim-sub);
+  --glass-cast-lg: var(--dark-glass-cast-lg);
+  --glass-cast-md: var(--dark-glass-cast-md);
+  --caustic-mint: var(--dark-caustic-mint);
   --blob-fade: var(--dark-blob-fade);
   --wave-ink: var(--dark-wave-ink);
   --sw-off: var(--dark-sw-off);
@@ -221,9 +233,20 @@
 }
 
 /* ==========================================================================
-   Liquid glass (Command Center) — superficie base de toda la UI nueva.
-   Los tokens --glass-* viven en styles/theme.css con par light/dark.
+   Liquid glass (Command Center) — SISTEMA DE 3 TIERS, fuente única.
+   Todo cristal de la UI sale de aquí; nada de variantes ad-hoc por pantalla.
+   Tokens --glass-*/--caustic-* en styles/theme.css con par light/dark.
+
+   · .glass-t1  PROTAGONISTA (hero de Fuwa, card de onboarding): grosor físico
+     máximo — rim de luz, canto inferior refractado, sombra proyectada grande,
+     borde refractivo y sheen más pronunciados.
+   · .glass-t2  TRABAJO (settings, sidebar, topbar, cards) = .glass-card:
+     mismo grosor con sombra proyectada media.
+   · .glass-t3  UTILITARIO (chips, switch, kbd, dots): rim sutil + cáustica de
+     color bajo los controles activos (ver .fuwa-seg.on / switch on).
    ========================================================================== */
+.glass-t1,
+.glass-t2,
 .glass-card {
   position: relative;
   background: linear-gradient(
@@ -234,14 +257,28 @@
   );
   backdrop-filter: blur(28px) saturate(1.7);
   -webkit-backdrop-filter: blur(28px) saturate(1.7);
-  box-shadow:
-    var(--glass-shadow),
-    inset 0 1px 0 var(--glass-edge),
-    inset 0 -1px 0 rgba(8, 140, 116, 0.06);
 }
 
-/* Borde refractivo en degradado: el gradiente se pinta solo en el anillo de
-   1.4px que deja el padding, con el truco de mask padding-box/border-box. */
+/* Grosor: sombra proyectada + rim de luz arriba + canto refractado abajo. */
+.glass-t2,
+.glass-card {
+  box-shadow:
+    var(--glass-cast-md),
+    var(--glass-rim-top),
+    var(--glass-edge-bottom);
+}
+
+.glass-t1 {
+  box-shadow:
+    var(--glass-cast-lg),
+    var(--glass-rim-top),
+    var(--glass-edge-bottom);
+}
+
+/* Borde refractivo en degradado: el gradiente se pinta solo en el anillo que
+   deja el padding, con el truco de mask padding-box/border-box. */
+.glass-t1::before,
+.glass-t2::before,
 .glass-card::before {
   content: "";
   position: absolute;
@@ -257,7 +294,14 @@
   mask-composite: exclude;
 }
 
+/* En el protagonista el canto refractivo es más grueso. */
+.glass-t1::before {
+  padding: 1.9px;
+}
+
 /* Brillo especular vivo que respira */
+.glass-t1::after,
+.glass-t2::after,
 .glass-card::after {
   content: "";
   position: absolute;
@@ -275,10 +319,21 @@
   animation: fuwa-sheen 7s ease-in-out infinite;
 }
 
+/* Sheen más vivo en el protagonista (vidrio de cuerpo real). */
+.glass-t1::after {
+  opacity: 0.95;
+}
+
 @keyframes fuwa-sheen {
   50% {
     opacity: 0.55;
   }
+}
+
+/* Tier utilitario: rim sutil reutilizable (kbd, pills). La cáustica de color
+   la aplican los controles activos con var(--caustic-mint). */
+.glass-t3 {
+  box-shadow: var(--glass-rim-sub);
 }
 
 /* Card que se eleva al pasar el mouse (cards de ajustes) */
@@ -292,7 +347,8 @@
   transform: translateY(-3px) scale(1.005);
   box-shadow:
     var(--glass-shadow-hover),
-    inset 0 1px 0 var(--glass-edge);
+    var(--glass-rim-top),
+    var(--glass-edge-bottom);
 }
 
 /* ---------- respuesta táctil (lib/ripple.ts, solo ventana principal) ---- */
@@ -650,9 +706,12 @@ button:not(:disabled):active,
 
 input:checked + .fuwa-sw {
   background: linear-gradient(160deg, #2febc9, #08d9b2);
+  /* Cáustica menta (t3): el color atraviesa el vidrio y deja un charquito
+     debajo del control encendido, además del glow y el inset propio. */
   box-shadow:
     inset 0 1px 3px rgba(4, 80, 66, 0.35),
-    0 0 16px -2px rgba(15, 231, 192, 0.7);
+    0 0 16px -2px rgba(15, 231, 192, 0.7),
+    var(--caustic-mint);
 }
 
 input:checked + .fuwa-sw::after {
@@ -693,44 +752,110 @@ input:focus-visible + .fuwa-sw {
   will-change: transform;
 }
 
+/* Blobs más saturados que la maqueta: el cristal necesita algo vivo debajo
+   para refractar. Núcleos intensos con caída suave al fondo. */
 .liquid-bg .lb1 {
   width: 560px;
   height: 560px;
-  background: radial-gradient(circle, #7ff2db, #c9fbf0 70%);
+  background: radial-gradient(circle, #2ff5d6 0%, #8ff5e2 45%, #c9fbf0 72%);
   top: -160px;
   left: -120px;
-  opacity: calc(0.65 * var(--blob-fade));
+  opacity: calc(0.68 * var(--blob-fade));
   animation: fuwa-drift1 26s ease-in-out infinite alternate;
 }
 
 .liquid-bg .lb2 {
   width: 640px;
   height: 640px;
-  background: radial-gradient(circle, #a5e8ff, #e3fbf5 70%);
+  background: radial-gradient(circle, #5fd6ff 0%, #9fe6ff 45%, #e3fbf5 72%);
   bottom: -220px;
   right: -160px;
-  opacity: calc(0.6 * var(--blob-fade));
+  opacity: calc(0.62 * var(--blob-fade));
   animation: fuwa-drift2 32s ease-in-out infinite alternate;
 }
 
 .liquid-bg .lb3 {
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, #efdfb4, #f6f1df 70%);
+  background: radial-gradient(circle, #ffd884 0%, #f4e3ad 48%, #f6f1df 74%);
   top: 38%;
   left: 50%;
-  opacity: calc(0.42 * var(--blob-fade));
+  opacity: calc(0.44 * var(--blob-fade));
   animation: fuwa-drift3 38s ease-in-out infinite alternate;
 }
 
 .liquid-bg .lb4 {
   width: 300px;
   height: 300px;
-  background: radial-gradient(circle, #c9b4ff, #eee8ff 70%);
+  background: radial-gradient(circle, #b48cff 0%, #d6c4ff 48%, #eee8ff 74%);
   top: 8%;
   left: 58%;
-  opacity: calc(0.3 * var(--blob-fade));
+  opacity: calc(0.34 * var(--blob-fade));
   animation: fuwa-drift1 30s ease-in-out infinite alternate-reverse;
+}
+
+/* Vetas iridiscentes: gradientes menta/aqua/violeta a muy baja opacidad que
+   giran/derivan >40s. Solo transform anima (composited); sin blur para no
+   cargar WebView2. Suben el matiz del vidrio sin tapar el contenido. */
+.liquid-bg .streak {
+  position: absolute;
+  inset: -45%;
+  will-change: transform;
+  opacity: var(--blob-fade);
+  pointer-events: none;
+}
+
+.liquid-bg .st1 {
+  background: conic-gradient(
+    from 90deg at 34% 42%,
+    transparent 0deg,
+    rgba(15, 231, 192, 0.06) 55deg,
+    transparent 150deg,
+    rgba(52, 208, 255, 0.05) 250deg,
+    transparent 340deg
+  );
+  animation: fuwa-streak-rot 58s linear infinite;
+}
+
+.liquid-bg .st2 {
+  background: conic-gradient(
+    from 240deg at 68% 60%,
+    transparent 0deg,
+    rgba(155, 107, 255, 0.06) 70deg,
+    transparent 170deg,
+    rgba(15, 231, 192, 0.04) 260deg,
+    transparent 350deg
+  );
+  animation: fuwa-streak-rot-rev 82s linear infinite;
+}
+
+.liquid-bg .st3 {
+  background: linear-gradient(
+    118deg,
+    transparent 32%,
+    rgba(52, 208, 255, 0.05) 47%,
+    rgba(155, 107, 255, 0.05) 55%,
+    transparent 70%
+  );
+  animation: fuwa-streak-pan 46s ease-in-out infinite alternate;
+}
+
+@keyframes fuwa-streak-rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fuwa-streak-rot-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes fuwa-streak-pan {
+  to {
+    transform: translate(9%, -7%);
+  }
 }
 
 @keyframes fuwa-drift1 {
@@ -879,7 +1004,7 @@ input:focus-visible + .fuwa-sw {
   outline-offset: 3px;
 }
 
-/* ---------- Chips segmentados (Modo Camuflaje, maqueta .seg) ---------- */
+/* ---------- Chips segmentados (Modo Camuflaje, maqueta .seg) — tier t3 ----- */
 .fuwa-seg {
   position: relative;
   overflow: hidden;
@@ -894,20 +1019,22 @@ input:focus-visible + .fuwa-sw {
   transition: all 0.18s;
   box-shadow:
     inset 0 0 0 1px rgba(8, 140, 116, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    var(--glass-rim-sub);
 }
 .fuwa-seg:hover {
   transform: translateY(-1px);
   box-shadow:
     inset 0 0 0 1px var(--fuwa-mint),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    var(--glass-rim-sub);
 }
 .fuwa-seg.on {
   background: linear-gradient(160deg, #2febc9, #0fe7c0);
   color: #04352b;
+  /* Cáustica menta del tier t3: charquito de color bajo el chip activo. */
   box-shadow:
     0 6px 14px -6px rgba(15, 231, 192, 0.9),
-    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    var(--caustic-mint);
 }
 
 /* ---------- Layout Command Center: Fuwa persistente al centro ---------- */
@@ -916,7 +1043,9 @@ input:focus-visible + .fuwa-sw {
    vuelve una fila compacta arriba del panel (ver FuwaHero.tsx). */
 .fuwa-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(400px, 38vw, 460px);
+  /* Panel de cards ancho (hasta 680px en maximizado) para que respiren; la
+     columna central de Fuwa cede ese espacio con el fr flexible. */
+  grid-template-columns: minmax(0, 1fr) clamp(460px, 44vw, 680px);
   gap: 14px;
   padding: 12px;
   min-height: 0;

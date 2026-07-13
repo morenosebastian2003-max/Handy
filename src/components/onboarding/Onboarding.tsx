@@ -216,7 +216,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       {phase === "ready" && <Confetti />}
 
       {phase === "intro" && (
-        <div className="glass-card onb-in rounded-[32px] relative flex flex-col items-center text-center w-full max-w-xl px-10 py-11">
+        <div className="glass-t1 onb-in rounded-[32px] relative flex flex-col items-center text-center w-full max-w-xl px-10 py-11">
           <span className="onb-kicker">{t("onboarding.intro.kicker")}</span>
           <div onClick={wakeUp} className="cursor-pointer">
             <FuwaFaceMascot face={introFace} width={200} />
@@ -235,7 +235,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       )}
 
       {phase === "model" && (
-        <div className="glass-card onb-in rounded-[32px] relative flex flex-col items-center text-center w-full max-w-2xl max-h-full px-8 py-8 min-h-0">
+        <div className="glass-t1 onb-in rounded-[32px] relative flex flex-col items-center text-center w-full max-w-2xl max-h-full px-8 py-8 min-h-0">
           <span className="onb-kicker shrink-0">
             {t("onboarding.brain.kicker")}
           </span>
@@ -347,7 +347,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       )}
 
       {phase === "ready" && (
-        <div className="glass-card onb-in rounded-[32px] relative flex flex-col items-center text-center w-full max-w-xl px-10 py-11">
+        <div className="glass-t1 onb-in rounded-[32px] relative flex flex-col items-center text-center w-full max-w-xl px-10 py-11">
           <span className="onb-kicker">{t("onboarding.ready.kicker")}</span>
           <FuwaFaceMascot face="happy" width={200} className="fuwa-bob" />
           <h1 className="font-display font-bold text-3xl tracking-tight mt-4">

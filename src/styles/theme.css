@@ -53,6 +53,20 @@
     0 34px 70px -28px rgba(8, 120, 100, 0.34),
     0 10px 22px -10px rgba(8, 120, 100, 0.18);
   --light-glass-sheen: rgba(255, 255, 255, 0.7);
+  /* Grosor físico del cristal (sistema de 3 tiers). Rim = canto superior de
+     luz; edge = canto inferior oscuro-refractado; cast = sombra proyectada;
+     caustic = glow del color atravesando el vidrio (charquito) bajo un control
+     activo. En dark bajan opacidad para no ensuciar (par --dark-* abajo). */
+  --light-glass-rim-top:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 3px 6px -3px rgba(255, 255, 255, 0.5);
+  --light-glass-edge-bottom:
+    inset 0 -1.5px 0 rgba(8, 140, 116, 0.12),
+    inset 0 -8px 16px -10px rgba(8, 60, 50, 0.15);
+  --light-glass-rim-sub: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --light-glass-cast-lg: 0 40px 80px -30px rgba(8, 120, 100, 0.35);
+  --light-glass-cast-md: 0 28px 60px -28px rgba(8, 120, 100, 0.26);
+  --light-caustic-mint: 0 6px 16px -4px rgba(15, 231, 192, 0.55);
   --light-blob-fade: 1;
   --light-wave-ink: #068c74;
   --light-sw-off: #ddebe6;
@@ -76,7 +90,20 @@
   --dark-glass-shadow-hover:
     0 34px 70px -28px rgba(0, 0, 0, 0.6), 0 10px 22px -10px rgba(0, 0, 0, 0.4);
   --dark-glass-sheen: rgba(158, 245, 226, 0.12);
-  --dark-blob-fade: 0.4;
+  /* Grosor físico en dark: rims y cáusticas ~40% más tenues que en light. */
+  --dark-glass-rim-top:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.42),
+    inset 0 3px 6px -3px rgba(255, 255, 255, 0.2);
+  --dark-glass-edge-bottom:
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.3),
+    inset 0 -8px 16px -10px rgba(0, 0, 0, 0.32);
+  --dark-glass-rim-sub: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+  --dark-glass-cast-lg: 0 40px 80px -30px rgba(0, 0, 0, 0.62);
+  --dark-glass-cast-md: 0 28px 60px -28px rgba(0, 0, 0, 0.5);
+  --dark-caustic-mint: 0 6px 16px -4px rgba(15, 231, 192, 0.33);
+  /* Con las nuevas opacidades base de blobs (~0.68), 0.32 deja el blob más
+     fuerte en ~0.22 en dark, como pide el diseño. */
+  --dark-blob-fade: 0.32;
   --dark-wave-ink: #35f0ce;
   --dark-sw-off: rgba(158, 245, 226, 0.16);
   --dark-mint-ink: #7ff2db;
@@ -97,6 +124,12 @@
   --glass-shadow: var(--light-glass-shadow);
   --glass-shadow-hover: var(--light-glass-shadow-hover);
   --glass-sheen: var(--light-glass-sheen);
+  --glass-rim-top: var(--light-glass-rim-top);
+  --glass-edge-bottom: var(--light-glass-edge-bottom);
+  --glass-rim-sub: var(--light-glass-rim-sub);
+  --glass-cast-lg: var(--light-glass-cast-lg);
+  --glass-cast-md: var(--light-glass-cast-md);
+  --caustic-mint: var(--light-caustic-mint);
   --blob-fade: var(--light-blob-fade);
   --wave-ink: var(--light-wave-ink);
   --sw-off: var(--light-sw-off);
@@ -119,6 +152,12 @@
     --glass-shadow: var(--dark-glass-shadow);
     --glass-shadow-hover: var(--dark-glass-shadow-hover);
     --glass-sheen: var(--dark-glass-sheen);
+    --glass-rim-top: var(--dark-glass-rim-top);
+    --glass-edge-bottom: var(--dark-glass-edge-bottom);
+    --glass-rim-sub: var(--dark-glass-rim-sub);
+    --glass-cast-lg: var(--dark-glass-cast-lg);
+    --glass-cast-md: var(--dark-glass-cast-md);
+    --caustic-mint: var(--dark-caustic-mint);
     --blob-fade: var(--dark-blob-fade);
     --wave-ink: var(--dark-wave-ink);
     --sw-off: var(--dark-sw-off);
