@@ -235,7 +235,7 @@
 /* ==========================================================================
    Liquid glass (Command Center) — SISTEMA DE 3 TIERS, fuente única.
    Todo cristal de la UI sale de aquí; nada de variantes ad-hoc por pantalla.
-   Tokens --glass-*/--caustic-* en styles/theme.css con par light/dark.
+   Tokens glass y caustic viven en styles/theme.css con par light/dark.
 
    · .glass-t1  PROTAGONISTA (hero de Fuwa, card de onboarding): grosor físico
      máximo — rim de luz, canto inferior refractado, sombra proyectada grande,
