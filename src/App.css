@@ -336,6 +336,233 @@ button:not(:disabled):active,
   transform: scale(0.96);
 }
 
+/* ---------- caras de Fuwa (lib/fuwaFaces.ts) ----------------------------- */
+.ff-glow {
+  stroke: #35f0ce;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px #35f0ce);
+}
+
+.ff-glow-f {
+  fill: #35f0ce;
+  filter: drop-shadow(0 0 4px #35f0ce);
+}
+
+.ff-eyes {
+  transform-origin: center;
+  animation: fuwa-blink 4.2s infinite;
+}
+
+.ff-bars rect {
+  transform-origin: center 29px;
+  animation: ff-bar 0.8s ease-in-out infinite;
+}
+
+@keyframes ff-bar {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.ff-dots circle {
+  animation: ff-dotp 1.2s ease-in-out infinite;
+}
+
+@keyframes ff-dotp {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.ff-check {
+  transform-origin: center;
+  animation: ff-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+@keyframes ff-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ff-rec {
+  animation: ff-rec 1s infinite;
+}
+
+@keyframes ff-rec {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* ---------- hero de Fuwa (settings/general/FuwaHero.tsx) ----------------- */
+.fuwa-halo {
+  position: absolute;
+  width: 460px;
+  height: 460px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(15, 231, 192, 0.18), transparent 65%);
+  animation: fuwa-halo 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes fuwa-halo {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.8;
+  }
+}
+
+.fuwa-bob {
+  animation: fuwa-bob 4.8s ease-in-out infinite;
+  filter: drop-shadow(0 24px 24px rgba(8, 120, 100, 0.3));
+}
+
+@keyframes fuwa-bob {
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ---------- onboarding compañero (onboarding/Onboarding.tsx) ------------- */
+.onb-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.onb-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(8, 140, 116, 0.2);
+  transition: all 0.3s;
+}
+
+.onb-dots i.on {
+  background: var(--fuwa-mint);
+  box-shadow: 0 0 8px var(--fuwa-mint);
+  transform: scale(1.25);
+}
+
+.fuwa-conf {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  top: -12px;
+  animation: fuwa-fall 1.6s ease-in forwards;
+  z-index: 5;
+}
+
+@keyframes fuwa-fall {
+  to {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0.2;
+  }
+}
+
+.onb-in {
+  animation: fuwa-onb-in 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+}
+
+@keyframes fuwa-onb-in {
+  0% {
+    transform: translateY(26px) scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.onb-kicker {
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--mint-ink);
+  margin-bottom: 14px;
+}
+
+/* CTA menta del onboarding (.onb-cta de la maqueta) */
+.fuwa-cta {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  border-radius: 100px;
+  padding: 14px 34px;
+  cursor: pointer;
+  font-family: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  color: #04352b;
+  background: linear-gradient(160deg, #2febc9, #0fe7c0);
+  box-shadow:
+    0 16px 34px -12px rgba(15, 231, 192, 0.9),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65);
+}
+
+.fuwa-cta:hover {
+  transform: translateY(-2px);
+}
+
+/* Model cards glass (onboarding/ModelCard.tsx) — el .mcard de la maqueta */
+.fuwa-mcard {
+  background: var(--glass-hi);
+  box-shadow:
+    inset 0 0 0 1px rgba(8, 140, 116, 0.14),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+.fuwa-mcard-feat {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(15, 231, 192, 0.45),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+.fuwa-mcard-on {
+  box-shadow:
+    inset 0 0 0 2px var(--fuwa-mint),
+    0 14px 30px -14px rgba(15, 231, 192, 0.8),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+.fuwa-tag-gold {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Space Mono", ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7a5a12;
+  background: linear-gradient(160deg, #f4dfae, #e8c97e);
+  border-radius: 100px;
+  padding: 3px 9px;
+}
+
 /* ---------- sidebar viva (components/Sidebar.tsx) — .nav de la maqueta --- */
 .fuwa-nav {
   position: relative;

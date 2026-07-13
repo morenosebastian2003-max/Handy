@@ -106,23 +106,25 @@ const ModelCard: React.FC<ModelCardProps> = ({
     model.supported_languages,
   );
 
+  // Piel glass (.mcard de la maqueta): fondo translúcido con anillo interior;
+  // el anillo pasa a menta sólida cuando la card está activa/seleccionada.
   const baseClasses =
-    "flex flex-col rounded-xl px-4 py-3 gap-2 text-left transition-all duration-200";
+    "fuwa-mcard flex flex-col rounded-2xl px-4 py-3 gap-2 text-left transition-all duration-200";
 
   const getVariantClasses = () => {
     if (status === "active") {
-      return "border-2 border-logo-primary/50 bg-logo-primary/10";
+      return "fuwa-mcard-on";
     }
     if (isFeatured) {
-      return "border-2 border-logo-primary/25 bg-logo-primary/5";
+      return "fuwa-mcard-feat";
     }
-    return "border-2 border-mid-gray/20";
+    return "";
   };
 
   const getInteractiveClasses = () => {
     if (!isClickable) return "";
     if (disabled) return "opacity-50 cursor-not-allowed";
-    return "cursor-pointer hover:border-logo-primary/50 hover:bg-logo-primary/5 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] group";
+    return "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99] group";
   };
 
   const handleClick = () => {
@@ -166,7 +168,9 @@ const ModelCard: React.FC<ModelCardProps> = ({
               {displayName}
             </h3>
             {showRecommended && model.is_recommended && (
-              <Badge variant="primary">{t("onboarding.recommended")}</Badge>
+              <span className="fuwa-tag-gold">
+                {t("onboarding.recommendedTag")}
+              </span>
             )}
             {status === "active" && (
               <Badge variant="primary">

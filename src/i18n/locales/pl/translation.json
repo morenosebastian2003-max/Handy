@@ -117,7 +117,24 @@
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
       }
-    }
+    },
+    "intro": {
+      "kicker": "First run",
+      "title": "Shhh… she's asleep.",
+      "subtitle": "This is Fuwa, your dictation companion. She lives on your desktop, listens only when you want, and never sends your voice to the cloud. Tap her to wake her up.",
+      "cta": "👋 Wake Fuwa up"
+    },
+    "brain": {
+      "kicker": "Her brain",
+      "title": "Choose her brain.",
+      "subtitle": "Everything runs 100% on your computer. You can change it anytime."
+    },
+    "ready": {
+      "kicker": "Ready",
+      "title": "Your companion is ready.",
+      "subtitle": "She lives in the bubble on your desktop. Click to talk, drag her anywhere. Welcome to the club of people who no longer type."
+    },
+    "recommendedTag": "★ Recommended"
   },
   "modelSelector": {
     "custom": "Własny",
@@ -638,5 +655,24 @@
   },
   "whatsNew": {
     "title": "Nowości w Fuwa v{{version}}"
+  },
+  "fuwaHero": {
+    "kicker": "Live status",
+    "idle": {
+      "title": "All set.",
+      "subtitle": "Press your shortcut and speak — the text appears right where your cursor is."
+    },
+    "listen": {
+      "title": "Listening…",
+      "subtitle": "The wave follows your voice in real time. Release to transcribe."
+    },
+    "think": {
+      "title": "Polishing with AI…",
+      "subtitle": "Transcription and polish, all on your machine."
+    },
+    "done": {
+      "title": "✓ Inserted.",
+      "subtitle": "The text is already where your cursor was. Zero data left your computer."
+    }
   }
 }

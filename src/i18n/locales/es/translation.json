@@ -117,7 +117,24 @@
         "checkFailed": "Error al verificar permisos. Por favor, inténtalo de nuevo.",
         "requestFailed": "Error al solicitar permiso. Por favor, inténtalo de nuevo."
       }
-    }
+    },
+    "intro": {
+      "kicker": "Primer arranque",
+      "title": "Shhh… está dormida.",
+      "subtitle": "Esta es Fuwa, tu compañera de dictado. Vive en tu escritorio, te escucha solo cuando tú quieras y nunca manda tu voz a la nube. Tócala para despertarla.",
+      "cta": "👋 Despertar a Fuwa"
+    },
+    "brain": {
+      "kicker": "Su cerebro",
+      "title": "Elige su cerebro.",
+      "subtitle": "Todo corre 100% en tu equipo. Puedes cambiarlo cuando quieras."
+    },
+    "ready": {
+      "kicker": "Lista",
+      "title": "Tu compañera está lista.",
+      "subtitle": "Vive en la burbuja de tu escritorio. Clic para hablar, arrástrala a donde quieras. Bienvenido al club de los que ya no escriben."
+    },
+    "recommendedTag": "★ Recomendado"
   },
   "modelSelector": {
     "custom": "Personalizado",
@@ -638,5 +655,24 @@
   },
   "whatsNew": {
     "title": "Nuevo en Fuwa v{{version}}"
+  },
+  "fuwaHero": {
+    "kicker": "Estado en vivo",
+    "idle": {
+      "title": "Todo listo.",
+      "subtitle": "Aprieta tu atajo y habla — el texto aparece donde esté tu cursor."
+    },
+    "listen": {
+      "title": "Escuchando…",
+      "subtitle": "La onda sigue tu voz en tiempo real. Suelta para transcribir."
+    },
+    "think": {
+      "title": "Puliendo con IA…",
+      "subtitle": "Transcripción y pulido, todo en tu máquina."
+    },
+    "done": {
+      "title": "✓ Insertado.",
+      "subtitle": "El texto ya está donde estaba tu cursor. 0 datos salieron de tu equipo."
+    }
   }
 }
