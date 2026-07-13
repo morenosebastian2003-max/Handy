@@ -299,6 +299,43 @@
     inset 0 1px 0 var(--glass-edge);
 }
 
+/* ---------- respuesta táctil (lib/ripple.ts, solo ventana principal) ---- */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(15, 231, 192, 0.45),
+    rgba(255, 255, 255, 0.15) 60%,
+    transparent 70%
+  );
+  transform: scale(0);
+  animation: fuwa-rip 0.5s ease-out forwards;
+  z-index: 3;
+}
+
+@keyframes fuwa-rip {
+  to {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* Escala al presionar, como en la maqueta (.tap). Las utilities de Tailwind
+   presentes en cada botón ganan por especificidad cuando aplican. */
+button,
+[role="button"],
+.nav-item {
+  transition: transform 0.16s cubic-bezier(0.2, 1, 0.4, 1);
+}
+
+button:not(:disabled):active,
+[role="button"]:active,
+.nav-item:active {
+  transform: scale(0.96);
+}
+
 /* ---------- fondo líquido (components/LiquidBackground.tsx) ---------- */
 .liquid-bg {
   position: fixed;

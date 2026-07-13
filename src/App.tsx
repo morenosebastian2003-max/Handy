@@ -12,6 +12,7 @@ import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
 import LiquidBackground from "./components/LiquidBackground";
+import { installRipple } from "./lib/ripple";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { WhatsNewGate } from "./components/whats-new";
@@ -51,6 +52,9 @@ function App() {
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
+
+  // Ripple táctil global (un solo listener, solo en la ventana principal)
+  useEffect(() => installRipple(), []);
 
   // Initialize RTL direction when language changes
   useEffect(() => {
