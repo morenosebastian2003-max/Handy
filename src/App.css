@@ -336,6 +336,62 @@ button:not(:disabled):active,
   transform: scale(0.96);
 }
 
+/* ---------- switch pill (ui/ToggleSwitch.tsx) — el .sw de la maqueta ----- */
+.fuwa-sw {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border-radius: 100px;
+  background: var(--sw-off);
+  flex-shrink: 0;
+  transition: background 0.25s;
+  box-shadow: inset 0 2px 4px rgba(8, 60, 50, 0.12);
+}
+
+.fuwa-sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #fff, #f2faf7);
+  box-shadow:
+    0 2px 8px rgba(8, 60, 50, 0.3),
+    inset 0 1px 0 #fff;
+  transition: transform 0.25s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+input:checked + .fuwa-sw {
+  background: linear-gradient(160deg, #2febc9, #08d9b2);
+  box-shadow:
+    inset 0 1px 3px rgba(4, 80, 66, 0.35),
+    0 0 16px -2px rgba(15, 231, 192, 0.7);
+}
+
+input:checked + .fuwa-sw::after {
+  transform: translateX(22px);
+}
+
+[dir="rtl"] .fuwa-sw::after {
+  left: auto;
+  right: 3px;
+}
+
+[dir="rtl"] input:checked + .fuwa-sw::after {
+  transform: translateX(-22px);
+}
+
+input:disabled + .fuwa-sw {
+  opacity: 0.5;
+}
+
+input:focus-visible + .fuwa-sw {
+  outline: 2px solid var(--fuwa-mint);
+  outline-offset: 2px;
+}
+
 /* ---------- fondo líquido (components/LiquidBackground.tsx) ---------- */
 .liquid-bg {
   position: fixed;

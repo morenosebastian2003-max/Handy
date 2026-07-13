@@ -47,9 +47,11 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     setShowTooltip(!showTooltip);
   };
 
+  // Suelto = card liquid glass (radio 24px, hover que se eleva);
+  // grouped = fila dentro de un SettingsGroup que ya es glass.
   const containerClasses = grouped
-    ? "px-4 p-2"
-    : "px-4 p-2 rounded-lg border border-mid-gray/20";
+    ? "px-5 py-3"
+    : "glass-card glass-hover rounded-3xl px-5 py-4";
 
   if (layout === "stacked") {
     if (descriptionMode === "tooltip") {
@@ -121,8 +123,8 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   // Horizontal layout (default)
   const horizontalContainerClasses = grouped
-    ? "flex items-center justify-between min-h-12 px-4 p-2"
-    : "flex items-center justify-between min-h-12 px-4 p-2 rounded-lg border border-mid-gray/20";
+    ? "flex items-center justify-between min-h-12 px-5 py-3"
+    : "glass-card glass-hover rounded-3xl flex items-center justify-between min-h-14 px-5 py-4";
 
   if (descriptionMode === "tooltip") {
     return (
