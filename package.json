@@ -20,6 +20,9 @@
     "postinstall": "bun scripts/check-nix-deps.ts"
   },
   "dependencies": {
+    "@fontsource/fredoka": "^5.2.10",
+    "@fontsource/nunito": "^5.2.7",
+    "@fontsource/space-mono": "^5.2.9",
     "@tailwindcss/vite": "^4.1.16",
     "@tauri-apps/api": "^2.10.0",
     "@tauri-apps/plugin-autostart": "~2.5.1",

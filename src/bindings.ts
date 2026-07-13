@@ -487,6 +487,27 @@ async showMainWindowCommand() : Promise<Result<null, string>> {
 async cancelOperation() : Promise<void> {
     await TAURI_INVOKE("cancel_operation");
 },
+/**
+ * Toggle recording from the UI (Burbuja Fuwa click). Routes through the same
+ * coordinator input as the global shortcut and CLI `--toggle-transcription`.
+ */
+async toggleTranscription() : Promise<void> {
+    await TAURI_INVOKE("toggle_transcription");
+},
+/**
+ * Resize the Burbuja Fuwa (right-click size picker). The frontend persists
+ * the chosen scale and restores it on boot by calling this again.
+ */
+async setBubbleScale(scale: number) : Promise<void> {
+    await TAURI_INVOKE("set_bubble_scale", { scale });
+},
+/**
+ * Grow/restore the bubble window while its right-click menu is open, so the
+ * menu fits even when the bubble is at its smallest size.
+ */
+async setBubbleMenuOpen(open: boolean) : Promise<void> {
+    await TAURI_INVOKE("set_bubble_menu_open", { open });
+},
 async isPortable() : Promise<boolean> {
     return await TAURI_INVOKE("is_portable");
 },
@@ -846,10 +867,8 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
 }
 },
 /**
- * Checks if the Mac is a laptop by detecting battery presence
- * 
- * This uses pmset to check for battery information.
- * Returns true if a battery is detected (laptop), false otherwise (desktop)
+ * Stub implementation for non-macOS platforms
+ * Always returns false since laptop detection is macOS-specific
  */
 async isLaptop() : Promise<Result<boolean, string>> {
     try {
@@ -974,7 +993,13 @@ export type OverlayPosition = "top" | "bottom"
  * `None` hides the overlay entirely. Decoupled from whether the model runs in
  * streaming mode (that is driven purely by model capability).
  */
-export type OverlayStyle = "none" | "minimal" | "live"
+export type OverlayStyle = "none" | "minimal" | "live" | 
+/**
+ * Burbuja Fuwa: persistent draggable mascot bubble that lives on the
+ * desktop; reacts while recording and idles (breathing) the rest of the
+ * time. The Fuwa signature.
+ */
+"bubble"
 export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"

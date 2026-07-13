@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     io::Error,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -534,6 +535,15 @@ fn run_consumer(
     let mut recording = false;
     let mut vad_policy = VadPolicy::Offline;
 
+    // ---------- pre-roll ring buffer (#1283) ----------------------------- //
+    // While the stream is open but idle, keep the most recent ~500ms of
+    // resampled 16 kHz audio. On Cmd::Start it is prepended to the recording,
+    // so speech that begins just before the shortcut lands (or during the VAD
+    // onset window) keeps its first word instead of being clipped.
+    const PREROLL_MS: usize = 500;
+    let preroll_cap = constants::WHISPER_SAMPLE_RATE as usize * PREROLL_MS / 1000;
+    let mut preroll: VecDeque<f32> = VecDeque::with_capacity(preroll_cap);
+
     // ---------- latency instrumentation ---------------------------------- //
     // First-chunk arrival exposes the play()->samples-flowing gap; the
     // first-captured log confirms capture begins with the chunk in flight
@@ -569,8 +579,15 @@ fn run_consumer(
         vad: &Option<VadConfig>,
         audio_cb: &Option<AudioFrameCallback>,
         out_buf: &mut Vec<f32>,
+        preroll: &mut VecDeque<f32>,
+        preroll_cap: usize,
     ) {
         if !recording {
+            // Idle: keep a bounded tail of recent audio for pre-roll.
+            preroll.extend(samples.iter().copied());
+            while preroll.len() > preroll_cap {
+                preroll.pop_front();
+            }
             return;
         }
 
@@ -618,6 +635,22 @@ fn run_consumer(
                     recording = true;
                     visualizer.reset();
                     frame_resampler.reset();
+                    // Prepend the idle pre-roll so speech that started just
+                    // before the shortcut keeps its first word (#1283). It
+                    // bypasses VAD on purpose: the VAD onset window is exactly
+                    // what clips leading phonemes.
+                    if !preroll.is_empty() {
+                        let preroll_samples: Vec<f32> = preroll.drain(..).collect();
+                        log::debug!(
+                            "prepending {}ms of pre-roll audio to recording",
+                            preroll_samples.len() * 1000
+                                / constants::WHISPER_SAMPLE_RATE as usize
+                        );
+                        processed_samples.extend_from_slice(&preroll_samples);
+                        if let Some(cb) = &audio_cb {
+                            cb(&preroll_samples);
+                        }
+                    }
                     // Reconfigure the single VAD engine for this session's policy
                     // and clear its smoothing + recurrent state before it sees
                     // any frames.
@@ -644,6 +677,8 @@ fn run_consumer(
                                 &vad,
                                 &audio_cb,
                                 &mut processed_samples,
+                                &mut preroll,
+                                preroll_cap,
                             )
                         });
                     }
@@ -663,6 +698,8 @@ fn run_consumer(
                                         &vad,
                                         &audio_cb,
                                         &mut processed_samples,
+                                        &mut preroll,
+                                        preroll_cap,
                                     )
                                 });
                             }
@@ -682,6 +719,8 @@ fn run_consumer(
                             &vad,
                             &audio_cb,
                             &mut processed_samples,
+                            &mut preroll,
+                            preroll_cap,
                         )
                     });
 
@@ -730,6 +769,8 @@ fn run_consumer(
                 &vad,
                 &audio_cb,
                 &mut processed_samples,
+                &mut preroll,
+                preroll_cap,
             )
         });
 

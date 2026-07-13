@@ -309,6 +309,17 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+
+    // Burbuja Fuwa is persistent: bring it up in idle state right after boot.
+    // Small delay so the overlay webview has loaded its listeners; the
+    // frontend also self-initializes from settings in case the event races.
+    if settings.overlay_style == settings::OverlayStyle::Bubble {
+        let ah = app_handle.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            overlay::show_bubble_idle(&ah);
+        });
+    }
 }
 
 #[tauri::command]
@@ -592,6 +603,9 @@ pub fn run(cli_args: CliArgs) {
             trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
+            commands::toggle_transcription,
+            commands::set_bubble_scale,
+            commands::set_bubble_menu_open,
             commands::is_portable,
             commands::get_app_dir_path,
             commands::get_app_settings,
@@ -802,7 +816,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Handy")
+                    .title("Fuwa")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)

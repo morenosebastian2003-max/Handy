@@ -1,23 +1,35 @@
-/* Handy Colors */
+/* Fuwa Colors — menta eléctrica + violeta (línea gráfica jul 2026) */
 
 :root {
   /* Palette source of truth. Each themed color is defined once as a
      light/dark pair; the active tokens below and the `data-theme` overrides
      in App.css reference these, so a hex value lives in exactly one place. */
-  --light-color-text: #0f0f0f;
-  --light-color-background: #fbfbfb;
-  --light-color-logo-primary: #faa2ca;
-  --light-color-logo-stroke: #382731;
+  --light-color-text: #10201c;
+  --light-color-background: #f7fdfb;
+  --light-color-logo-primary: #0fe7c0;
+  --light-color-logo-stroke: #123b33;
 
-  --dark-color-text: #fbfbfb;
-  --dark-color-background: #2c2b29;
-  --dark-color-logo-primary: #f28cbb;
-  --dark-color-logo-stroke: #fad1ed;
+  --dark-color-text: #f2fffb;
+  --dark-color-background: #10201c;
+  --dark-color-logo-primary: #0fe7c0;
+  --dark-color-logo-stroke: #9ef5e2;
 
   /* Tokens that do not change between light and dark */
-  --color-background-ui: #da5893;
-  --color-text-stroke: #f6f6f6;
-  --color-mid-gray: #808080;
+  --color-background-ui: #0ec9a8;
+  --color-text-stroke: #f6fffc;
+  --color-mid-gray: #7d8f8a;
+
+  /* Fuwa brand accents (fixed) */
+  --fuwa-mint: #0fe7c0;
+  --fuwa-violet: #9b6bff;
+  --fuwa-aqua: #34d0ff;
+  --fuwa-lemon: #ffc93c;
+  --fuwa-gradient: linear-gradient(
+    135deg,
+    var(--fuwa-mint),
+    var(--fuwa-aqua),
+    var(--fuwa-violet)
+  );
 
   /* Active palette — defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see App.css). */

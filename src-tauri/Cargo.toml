@@ -1,7 +1,7 @@
 [package]
 name = "handy"
 version = "0.9.1"
-description = "Handy"
+description = "Fuwa - dictado por voz 100% local"
 authors = ["cjpais"]
 edition = "2021"
 license = "MIT"
@@ -126,9 +126,12 @@ winreg = "0.55"
 # signtool verify entirely. CI pins -DGGML_NATIVE=OFF (see build.yml) so the
 # static build targets a portable ARM baseline, not the build runner's CPU.
 [target.'cfg(all(windows, target_arch = "x86_64"))'.dependencies]
+# Fuwa dev note: upstream ships the "vulkan" feature here, but it requires the
+# Vulkan SDK (glslc) at build time. This machine builds CPU-only — Whisper runs
+# on the per-ISA CPU backends and Parakeet (ONNX) is unaffected, which is the
+# engine the demo leads with (Peso Fuwa 🪽).
 transcribe-cpp = { version = "0.1.2", default-features = false, features = [
   "dynamic-backends",
-  "vulkan",
 ] }
 
 [target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]

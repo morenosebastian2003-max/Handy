@@ -50,6 +50,61 @@ const OVERLAY_HEIGHT: f64 = 46.0;
 const OVERLAY_STREAM_WIDTH: f64 = 400.0;
 const OVERLAY_STREAM_HEIGHT: f64 = 120.0;
 
+// Burbuja Fuwa: window hosting the persistent mascot (the 272×383 body render
+// displayed at 100px wide at scale 1, plus a small margin for its shadow).
+// Keep in sync with BASE_MASCOT_W in src/overlay/FuwaBubble.tsx.
+const BUBBLE_WIDTH: f64 = 112.0;
+const BUBBLE_HEIGHT: f64 = 152.0;
+
+// Burbuja Fuwa size multiplier, in thousandths (1000 = 1.0×). Set from the
+// bubble's right-click size picker via the `set_bubble_scale` command; the
+// frontend persists the choice and restores it on boot.
+static BUBBLE_SCALE_MILLI: AtomicU64 = AtomicU64::new(1000);
+
+fn bubble_scale() -> f64 {
+    BUBBLE_SCALE_MILLI.load(Ordering::Relaxed) as f64 / 1000.0
+}
+
+/// Stores the Burbuja Fuwa size multiplier and resizes the persistent window
+/// right away when the bubble style is active.
+pub fn apply_bubble_scale(app_handle: &AppHandle, scale: f64) {
+    let clamped = scale.clamp(0.5, 2.5);
+    BUBBLE_SCALE_MILLI.store((clamped * 1000.0) as u64, Ordering::Relaxed);
+    resize_bubble_window(app_handle, false);
+}
+
+/// Grows the bubble window while its right-click menu is open, so the menu
+/// fits even at the smallest bubble size; restores it on close.
+pub fn apply_bubble_menu_open(app_handle: &AppHandle, open: bool) {
+    resize_bubble_window(app_handle, open);
+}
+
+fn resize_bubble_window(app_handle: &AppHandle, menu_open: bool) {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_style != OverlayStyle::Bubble {
+        return;
+    }
+    let scale = bubble_scale();
+    let mut width = BUBBLE_WIDTH * scale;
+    let mut height = BUBBLE_HEIGHT * scale;
+    if menu_open {
+        width = width.max(170.0);
+        height = height.max(230.0);
+    }
+    if let Some(window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+    }
+}
+
+// Margin from the screen edges for the bubble's initial (bottom-right) spot.
+const BUBBLE_EDGE_MARGIN: f64 = 28.0;
+const BUBBLE_BOTTOM_MARGIN: f64 = 72.0;
+
+/// Set once the bubble has been placed (initially, or by the user dragging
+/// it). While the bubble style is active we never reposition the window on
+/// state changes — the spot the user dragged it to wins.
+static BUBBLE_PLACED: AtomicBool = AtomicBool::new(false);
+
 /// Overlay window size (logical) for a given UI state.
 fn overlay_dimensions(state: &str) -> (f64, f64) {
     if state == "streaming" {
@@ -359,6 +414,22 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
     }
 }
 
+/// Initial bubble spot: bottom-right corner of the monitor with the cursor.
+fn calculate_bubble_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
+    let monitor = get_monitor_with_cursor(app_handle)?;
+    let scale = monitor.scale_factor();
+    let monitor_x = monitor.position().x as f64 / scale;
+    let monitor_y = monitor.position().y as f64 / scale;
+    let monitor_width = monitor.size().width as f64 / scale;
+    let monitor_height = monitor.size().height as f64 / scale;
+
+    let scale = bubble_scale();
+    Some((
+        monitor_x + monitor_width - BUBBLE_WIDTH * scale - BUBBLE_EDGE_MARGIN,
+        monitor_y + monitor_height - BUBBLE_HEIGHT * scale - BUBBLE_BOTTOM_MARGIN,
+    ))
+}
+
 fn show_overlay_state(app_handle: &AppHandle, state: &str) {
     // Whether the overlay shows at all is governed by overlay_style; position
     // only chooses Top vs Bottom placement.
@@ -366,9 +437,15 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
     if settings.overlay_style == OverlayStyle::None {
         return;
     }
+    let bubble = settings.overlay_style == OverlayStyle::Bubble && state != "streaming";
 
     // Size the overlay for this state (compact vs. streaming), then position it.
-    let (width, height) = overlay_dimensions(state);
+    let (width, height) = if bubble {
+        let scale = bubble_scale();
+        (BUBBLE_WIDTH * scale, BUBBLE_HEIGHT * scale)
+    } else {
+        overlay_dimensions(state)
+    };
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         #[cfg(target_os = "linux")]
         update_gtk_layer_shell_anchors(&overlay_window);
@@ -379,7 +456,23 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
 
         let pos_started = std::time::Instant::now();
         let mut set_pos_elapsed = std::time::Duration::ZERO;
-        if let Some((x, y)) = calculate_overlay_position(app_handle, width, height) {
+        // Bubble: place once (bottom-right), then never fight the user's drag.
+        // Other styles reposition on every show as before.
+        let target_pos = if bubble {
+            if BUBBLE_PLACED.swap(true, Ordering::SeqCst) {
+                None
+            } else {
+                calculate_bubble_position(app_handle)
+            }
+        } else {
+            // Leaving bubble mode (e.g. streaming panel, or style changed):
+            // the next bubble show should re-place itself.
+            calculate_overlay_position(app_handle, width, height)
+        };
+        if !bubble {
+            BUBBLE_PLACED.store(false, Ordering::SeqCst);
+        }
+        if let Some((x, y)) = target_pos {
             let set_pos_started = std::time::Instant::now();
             let _ = overlay_window
                 .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
@@ -410,6 +503,15 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
 /// Shows the recording overlay window with fade-in animation
 pub fn show_recording_overlay(app_handle: &AppHandle) {
     show_overlay_state(app_handle, "recording");
+}
+
+/// Shows the persistent Burbuja Fuwa in its idle (breathing) state. Only
+/// meaningful when `overlay_style` is `Bubble`; no-ops otherwise.
+pub fn show_bubble_idle(app_handle: &AppHandle) {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_style == OverlayStyle::Bubble {
+        show_overlay_state(app_handle, "idle");
+    }
 }
 
 /// Shows the larger streaming overlay that displays live transcription text
@@ -448,6 +550,13 @@ pub fn update_overlay_position(app_handle: &AppHandle) {
 
 /// Hides the recording overlay window with fade-out animation
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
+    // Burbuja Fuwa never hides: it returns to its idle (breathing) state and
+    // stays on the desktop. All other styles hide as before.
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_style == OverlayStyle::Bubble {
+        show_overlay_state(app_handle, "idle");
+        return;
+    }
     // Always hide the overlay regardless of settings - if setting was changed while recording,
     // we still want to hide it properly
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
