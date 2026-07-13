@@ -220,10 +220,6 @@
   }
 }
 
-/* Wordmark: el logo Fuwa del hero de la landing — Fredoka 700, degradado
-   menta y extrusión 3D escalonada. Las sombras van en em para que el relieve
-   escale idéntico a cualquier tamaño (en el hero: 3/6/9/12px a ~150px de
-   fuente = 0.02em por capa). Ley es ley. */
 /* ==========================================================================
    Liquid glass (Command Center) — superficie base de toda la UI nueva.
    Los tokens --glass-* viven en styles/theme.css con par light/dark.
@@ -422,7 +418,11 @@ button:not(:disabled):active,
   width: 460px;
   height: 460px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(15, 231, 192, 0.18), transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(15, 231, 192, 0.18),
+    transparent 65%
+  );
   animation: fuwa-halo 5s ease-in-out infinite;
   pointer-events: none;
 }
@@ -778,6 +778,10 @@ input:focus-visible + .fuwa-sw {
   }
 }
 
+/* Wordmark: el logo Fuwa del hero de la landing — Fredoka 700, degradado
+   menta y extrusión 3D escalonada. Las sombras van en em para que el relieve
+   escale idéntico a cualquier tamaño (en el hero: 3/6/9/12px a ~150px de
+   fuente = 0.02em por capa). Ley es ley. */
 .fuwa-wordmark {
   font-family: "Fredoka", sans-serif;
   font-weight: 700;
