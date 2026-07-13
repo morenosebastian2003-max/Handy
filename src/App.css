@@ -83,6 +83,20 @@
   --color-background: var(--light-color-background);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+
+  --glass-1: var(--light-glass-1);
+  --glass-2: var(--light-glass-2);
+  --glass-3: var(--light-glass-3);
+  --glass-hi: var(--light-glass-hi);
+  --glass-edge: var(--light-glass-edge);
+  --glass-border: var(--light-glass-border);
+  --glass-shadow: var(--light-glass-shadow);
+  --glass-shadow-hover: var(--light-glass-shadow-hover);
+  --glass-sheen: var(--light-glass-sheen);
+  --blob-fade: var(--light-blob-fade);
+  --wave-ink: var(--light-wave-ink);
+  --sw-off: var(--light-sw-off);
+  --mint-ink: var(--light-mint-ink);
 }
 
 :root[data-theme="dark"] {
@@ -90,6 +104,20 @@
   --color-background: var(--dark-color-background);
   --color-logo-primary: var(--dark-color-logo-primary);
   --color-logo-stroke: var(--dark-color-logo-stroke);
+
+  --glass-1: var(--dark-glass-1);
+  --glass-2: var(--dark-glass-2);
+  --glass-3: var(--dark-glass-3);
+  --glass-hi: var(--dark-glass-hi);
+  --glass-edge: var(--dark-glass-edge);
+  --glass-border: var(--dark-glass-border);
+  --glass-shadow: var(--dark-glass-shadow);
+  --glass-shadow-hover: var(--dark-glass-shadow-hover);
+  --glass-sheen: var(--dark-glass-sheen);
+  --blob-fade: var(--dark-blob-fade);
+  --wave-ink: var(--dark-wave-ink);
+  --sw-off: var(--dark-sw-off);
+  --mint-ink: var(--dark-mint-ink);
 }
 
 /* macOS - tint native overlay scrollbar thumb */
@@ -196,6 +224,182 @@
    menta y extrusión 3D escalonada. Las sombras van en em para que el relieve
    escale idéntico a cualquier tamaño (en el hero: 3/6/9/12px a ~150px de
    fuente = 0.02em por capa). Ley es ley. */
+/* ==========================================================================
+   Liquid glass (Command Center) — superficie base de toda la UI nueva.
+   Los tokens --glass-* viven en styles/theme.css con par light/dark.
+   ========================================================================== */
+.glass-card {
+  position: relative;
+  background: linear-gradient(
+    150deg,
+    var(--glass-1),
+    var(--glass-2) 55%,
+    var(--glass-3)
+  );
+  backdrop-filter: blur(28px) saturate(1.7);
+  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-edge),
+    inset 0 -1px 0 rgba(8, 140, 116, 0.06);
+}
+
+/* Borde refractivo en degradado: el gradiente se pinta solo en el anillo de
+   1.4px que deja el padding, con el truco de mask padding-box/border-box. */
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: 1.4px;
+  background: var(--glass-border);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Brillo especular vivo que respira */
+.glass-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, var(--glass-sheen) 0%, transparent 26%),
+    radial-gradient(
+      120% 60% at 85% -10%,
+      color-mix(in srgb, var(--glass-sheen), transparent 30%),
+      transparent 60%
+    );
+  opacity: 0.8;
+  animation: fuwa-sheen 7s ease-in-out infinite;
+}
+
+@keyframes fuwa-sheen {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Card que se eleva al pasar el mouse (cards de ajustes) */
+.glass-hover {
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s;
+}
+
+.glass-hover:hover {
+  transform: translateY(-3px) scale(1.005);
+  box-shadow:
+    var(--glass-shadow-hover),
+    inset 0 1px 0 var(--glass-edge);
+}
+
+/* ---------- fondo líquido (components/LiquidBackground.tsx) ---------- */
+.liquid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.liquid-bg .blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+}
+
+.liquid-bg .lb1 {
+  width: 560px;
+  height: 560px;
+  background: radial-gradient(circle, #7ff2db, #c9fbf0 70%);
+  top: -160px;
+  left: -120px;
+  opacity: calc(0.65 * var(--blob-fade));
+  animation: fuwa-drift1 26s ease-in-out infinite alternate;
+}
+
+.liquid-bg .lb2 {
+  width: 640px;
+  height: 640px;
+  background: radial-gradient(circle, #a5e8ff, #e3fbf5 70%);
+  bottom: -220px;
+  right: -160px;
+  opacity: calc(0.6 * var(--blob-fade));
+  animation: fuwa-drift2 32s ease-in-out infinite alternate;
+}
+
+.liquid-bg .lb3 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #efdfb4, #f6f1df 70%);
+  top: 38%;
+  left: 50%;
+  opacity: calc(0.42 * var(--blob-fade));
+  animation: fuwa-drift3 38s ease-in-out infinite alternate;
+}
+
+.liquid-bg .lb4 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, #c9b4ff, #eee8ff 70%);
+  top: 8%;
+  left: 58%;
+  opacity: calc(0.3 * var(--blob-fade));
+  animation: fuwa-drift1 30s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes fuwa-drift1 {
+  to {
+    transform: translate(90px, 70px) scale(1.12);
+  }
+}
+
+@keyframes fuwa-drift2 {
+  to {
+    transform: translate(-80px, -60px) scale(1.08);
+  }
+}
+
+@keyframes fuwa-drift3 {
+  to {
+    transform: translate(-70px, 50px) scale(1.15);
+  }
+}
+
+.liquid-bg .waves {
+  position: absolute;
+  inset: -50%;
+  opacity: 0.024;
+  animation: fuwa-wave-drift 60s linear infinite;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 7px,
+    var(--wave-ink) 7px 9px,
+    transparent 9px 22px,
+    var(--wave-ink) 22px 23px,
+    transparent 23px 40px
+  );
+  mask-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 26px,
+    #000 26px 60px,
+    transparent 60px 90px
+  );
+}
+
+@keyframes fuwa-wave-drift {
+  to {
+    transform: translateX(240px);
+  }
+}
+
 .fuwa-wordmark {
   font-family: "Fredoka", sans-serif;
   font-weight: 700;

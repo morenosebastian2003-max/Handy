@@ -31,12 +31,76 @@
     var(--fuwa-violet)
   );
 
+  /* Liquid glass (Command Center) — light/dark pairs, same scheme as the
+     colors above. The `--glass-*` active tokens are what components use. */
+  --light-glass-1: rgba(255, 255, 255, 0.66);
+  --light-glass-2: rgba(255, 255, 255, 0.38);
+  --light-glass-3: rgba(236, 252, 247, 0.5);
+  --light-glass-hi: rgba(255, 255, 255, 0.78);
+  --light-glass-edge: rgba(255, 255, 255, 0.95);
+  --light-glass-border: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(15, 231, 192, 0.35) 30%,
+    rgba(255, 255, 255, 0.15) 55%,
+    rgba(155, 107, 255, 0.18) 80%,
+    rgba(255, 255, 255, 0.6)
+  );
+  --light-glass-shadow:
+    0 28px 70px -30px rgba(8, 120, 100, 0.28),
+    0 8px 22px -10px rgba(8, 120, 100, 0.14);
+  --light-glass-shadow-hover:
+    0 34px 70px -28px rgba(8, 120, 100, 0.34),
+    0 10px 22px -10px rgba(8, 120, 100, 0.18);
+  --light-glass-sheen: rgba(255, 255, 255, 0.7);
+  --light-blob-fade: 1;
+  --light-wave-ink: #068c74;
+  --light-sw-off: #ddebe6;
+  --light-mint-ink: #068c74;
+
+  --dark-glass-1: rgba(26, 50, 44, 0.62);
+  --dark-glass-2: rgba(16, 32, 28, 0.45);
+  --dark-glass-3: rgba(12, 40, 34, 0.55);
+  --dark-glass-hi: rgba(22, 46, 40, 0.75);
+  --dark-glass-edge: rgba(158, 245, 226, 0.16);
+  --dark-glass-border: linear-gradient(
+    140deg,
+    rgba(158, 245, 226, 0.4),
+    rgba(15, 231, 192, 0.35) 30%,
+    rgba(255, 255, 255, 0.06) 55%,
+    rgba(155, 107, 255, 0.22) 80%,
+    rgba(158, 245, 226, 0.25)
+  );
+  --dark-glass-shadow:
+    0 28px 70px -30px rgba(0, 0, 0, 0.55), 0 8px 22px -10px rgba(0, 0, 0, 0.35);
+  --dark-glass-shadow-hover:
+    0 34px 70px -28px rgba(0, 0, 0, 0.6), 0 10px 22px -10px rgba(0, 0, 0, 0.4);
+  --dark-glass-sheen: rgba(158, 245, 226, 0.12);
+  --dark-blob-fade: 0.4;
+  --dark-wave-ink: #35f0ce;
+  --dark-sw-off: rgba(158, 245, 226, 0.16);
+  --dark-mint-ink: #7ff2db;
+
   /* Active palette — defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see App.css). */
   --color-text: var(--light-color-text);
   --color-background: var(--light-color-background);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+
+  --glass-1: var(--light-glass-1);
+  --glass-2: var(--light-glass-2);
+  --glass-3: var(--light-glass-3);
+  --glass-hi: var(--light-glass-hi);
+  --glass-edge: var(--light-glass-edge);
+  --glass-border: var(--light-glass-border);
+  --glass-shadow: var(--light-glass-shadow);
+  --glass-shadow-hover: var(--light-glass-shadow-hover);
+  --glass-sheen: var(--light-glass-sheen);
+  --blob-fade: var(--light-blob-fade);
+  --wave-ink: var(--light-wave-ink);
+  --sw-off: var(--light-sw-off);
+  --mint-ink: var(--light-mint-ink);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -45,5 +109,19 @@
     --color-background: var(--dark-color-background);
     --color-logo-primary: var(--dark-color-logo-primary);
     --color-logo-stroke: var(--dark-color-logo-stroke);
+
+    --glass-1: var(--dark-glass-1);
+    --glass-2: var(--dark-glass-2);
+    --glass-3: var(--dark-glass-3);
+    --glass-hi: var(--dark-glass-hi);
+    --glass-edge: var(--dark-glass-edge);
+    --glass-border: var(--dark-glass-border);
+    --glass-shadow: var(--dark-glass-shadow);
+    --glass-shadow-hover: var(--dark-glass-shadow-hover);
+    --glass-sheen: var(--dark-glass-sheen);
+    --blob-fade: var(--dark-blob-fade);
+    --wave-ink: var(--dark-wave-ink);
+    --sw-off: var(--dark-sw-off);
+    --mint-ink: var(--dark-mint-ink);
   }
 }

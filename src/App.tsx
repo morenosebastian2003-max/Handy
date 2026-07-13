@@ -11,6 +11,7 @@ import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
+import LiquidBackground from "./components/LiquidBackground";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { WhatsNewGate } from "./components/whats-new";
@@ -316,7 +317,9 @@ function App() {
   return (
     <>
       {toaster}
-      {content}
+      <LiquidBackground />
+      {/* Todo el contenido va por encima del fondo líquido (z-1 sobre z-0) */}
+      <div className="relative z-[1] h-screen overflow-hidden">{content}</div>
     </>
   );
 }
