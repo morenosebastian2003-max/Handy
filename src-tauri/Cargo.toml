@@ -126,12 +126,14 @@ winreg = "0.55"
 # signtool verify entirely. CI pins -DGGML_NATIVE=OFF (see build.yml) so the
 # static build targets a portable ARM baseline, not the build runner's CPU.
 [target.'cfg(all(windows, target_arch = "x86_64"))'.dependencies]
-# Fuwa dev note: upstream ships the "vulkan" feature here, but it requires the
-# Vulkan SDK (glslc) at build time. This machine builds CPU-only — Whisper runs
-# on the per-ISA CPU backends and Parakeet (ONNX) is unaffected, which is the
-# engine the demo leads with (Peso Fuwa 🪽).
+# Vulkan GPU acceleration for Whisper on Windows x86_64. The feature needs the
+# Vulkan SDK (glslc) at build time; the release CI (build.yml) installs it, so
+# it is restored here for the shipped build. (Leyvi's local machine lacked the
+# SDK and built CPU-only, but CI does not — keep this on for release parity
+# with v1.0.0.)
 transcribe-cpp = { version = "0.1.2", default-features = false, features = [
   "dynamic-backends",
+  "vulkan",
 ] }
 
 [target.'cfg(all(windows, target_arch = "aarch64"))'.dependencies]
