@@ -662,7 +662,8 @@
     "options": {
       "system": "מערכת",
       "light": "בהיר",
-      "dark": "כהה"
+      "dark": "כהה",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

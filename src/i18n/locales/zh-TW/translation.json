@@ -662,7 +662,8 @@
     "options": {
       "system": "跟隨系統",
       "light": "淺色",
-      "dark": "深色"
+      "dark": "深色",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

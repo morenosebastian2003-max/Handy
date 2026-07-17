@@ -661,11 +661,12 @@
   },
   "theme": {
     "title": "Application Theme",
-    "description": "Choose whether Fuwa follows your system theme or stays light or dark",
+    "description": "Choose how Fuwa looks. Ambient auto-switches between light and dark by time of day.",
     "options": {
       "system": "System",
       "light": "Light",
-      "dark": "Dark"
+      "dark": "Dark",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

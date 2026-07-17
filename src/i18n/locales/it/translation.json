@@ -662,7 +662,8 @@
     "options": {
       "system": "Sistema",
       "light": "Chiaro",
-      "dark": "Scuro"
+      "dark": "Scuro",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

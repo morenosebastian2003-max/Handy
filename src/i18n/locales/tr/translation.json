@@ -662,7 +662,8 @@
     "options": {
       "system": "Sistem",
       "light": "Açık",
-      "dark": "Koyu"
+      "dark": "Koyu",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

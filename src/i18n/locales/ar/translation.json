@@ -662,7 +662,8 @@
     "options": {
       "system": "النظام",
       "light": "فاتح",
-      "dark": "داكن"
+      "dark": "داكن",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

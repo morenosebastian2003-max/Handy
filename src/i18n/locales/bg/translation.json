@@ -662,7 +662,8 @@
     "options": {
       "system": "Системна",
       "light": "Светла",
-      "dark": "Тъмна"
+      "dark": "Тъмна",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

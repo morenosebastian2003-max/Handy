@@ -262,11 +262,14 @@ impl SoundTheme {
     }
 }
 
-/// UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
-/// and `Dark` force one of the two palettes Handy already ships.
+/// UI appearance mode. `Ambient` (the default) auto-switches between the light
+/// and dark palettes by time of day (resolved in the frontend). `System`
+/// follows the OS `prefers-color-scheme`; `Light` and `Dark` force one of the
+/// two palettes Fuwa ships.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Theme {
+    Ambient,
     System,
     Light,
     Dark,
@@ -597,7 +600,7 @@ fn default_sound_theme() -> SoundTheme {
 }
 
 fn default_theme() -> Theme {
-    Theme::System
+    Theme::Ambient
 }
 
 fn default_post_process_enabled() -> bool {

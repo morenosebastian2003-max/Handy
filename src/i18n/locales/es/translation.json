@@ -658,11 +658,12 @@
   },
   "theme": {
     "title": "Tema de la aplicación",
-    "description": "Elige si Fuwa sigue el tema del sistema o permanece claro u oscuro",
+    "description": "Elige el aspecto de Fuwa. Ambiente cambia solo entre claro y oscuro segun la hora del dia.",
     "options": {
       "system": "Sistema",
       "light": "Claro",
-      "dark": "Oscuro"
+      "dark": "Oscuro",
+      "ambient": "Ambiente"
     }
   },
   "overlay": {

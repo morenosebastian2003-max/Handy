@@ -662,7 +662,8 @@
     "options": {
       "system": "Hệ thống",
       "light": "Sáng",
-      "dark": "Tối"
+      "dark": "Tối",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

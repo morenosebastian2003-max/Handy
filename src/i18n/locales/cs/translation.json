@@ -662,7 +662,8 @@
     "options": {
       "system": "Systém",
       "light": "Světlý",
-      "dark": "Tmavý"
+      "dark": "Tmavý",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

@@ -522,12 +522,13 @@ pub fn change_sound_theme_setting(app: AppHandle, theme: String) -> Result<(), S
 pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     let parsed = match theme.as_str() {
+        "ambient" => Theme::Ambient,
         "system" => Theme::System,
         "light" => Theme::Light,
         "dark" => Theme::Dark,
         other => {
-            warn!("Invalid theme '{}', defaulting to system", other);
-            Theme::System
+            warn!("Invalid theme '{}', defaulting to ambient", other);
+            Theme::Ambient
         }
     };
     settings.theme = parsed;
@@ -535,6 +536,16 @@ pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String>
     #[cfg(target_os = "windows")]
     apply_window_theme(&app, parsed);
     Ok(())
+}
+
+/// Whether the ambient theme should currently resolve to dark: dark from 19:00
+/// to 07:00 local time, light otherwise. Kept in sync with the frontend's
+/// `ambientIsDark` (src/lib/utils/theme.ts).
+#[cfg(target_os = "windows")]
+fn ambient_is_dark() -> bool {
+    use chrono::Timelike;
+    let hour = chrono::Local::now().hour();
+    !(7..19).contains(&hour)
 }
 
 /// Applies the appearance setting to the Windows title bar, which CSS
@@ -547,6 +558,16 @@ pub fn apply_window_theme(app: &AppHandle, theme: Theme) {
         Theme::System => None,
         Theme::Light => Some(tauri::Theme::Light),
         Theme::Dark => Some(tauri::Theme::Dark),
+        // Ambient resolves to light/dark by local time of day (matching the
+        // frontend). The title bar refreshes on next launch / setting change;
+        // the in-app palette follows the frontend's periodic re-evaluation.
+        Theme::Ambient => {
+            if ambient_is_dark() {
+                Some(tauri::Theme::Dark)
+            } else {
+                Some(tauri::Theme::Light)
+            }
+        }
     };
     if let Some(window) = app.get_webview_window("main") {
         if let Err(e) = window.set_theme(window_theme) {

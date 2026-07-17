@@ -662,7 +662,8 @@
     "options": {
       "system": "System",
       "light": "Hell",
-      "dark": "Dunkel"
+      "dark": "Dunkel",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

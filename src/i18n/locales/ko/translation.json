@@ -662,7 +662,8 @@
     "options": {
       "system": "시스템",
       "light": "밝게",
-      "dark": "어둡게"
+      "dark": "어둡게",
+      "ambient": "Ambient"
     }
   },
   "overlay": {

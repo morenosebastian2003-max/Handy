@@ -665,7 +665,8 @@
     "options": {
       "system": "Systeem",
       "light": "Licht",
-      "dark": "Donker"
+      "dark": "Donker",
+      "ambient": "Ambient"
     }
   },
   "overlay": {
