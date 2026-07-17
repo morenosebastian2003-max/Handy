@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ResetButton } from "../ui/ResetButton";
+import { PortalMenu } from "../ui/PortalMenu";
 import { useSettings } from "../../hooks/useSettings";
 import {
   getLanguageLabel,
@@ -170,8 +171,12 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
             </svg>
           </button>
 
-          {isOpen && !isUpdating("selected_language") && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-mid-gray/80 rounded shadow-lg z-50 max-h-60 overflow-hidden">
+          <PortalMenu
+            anchorRef={dropdownRef}
+            open={isOpen && !isUpdating("selected_language")}
+            className="bg-background border border-mid-gray/80 rounded shadow-lg max-h-60 overflow-hidden"
+          >
+            <>
               {/* Search input */}
               <div className="p-2 border-b border-mid-gray/80">
                 <input
@@ -209,8 +214,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                   ))
                 )}
               </div>
-            </div>
-          )}
+            </>
+          </PortalMenu>
         </div>
         <ResetButton
           onClick={handleReset}

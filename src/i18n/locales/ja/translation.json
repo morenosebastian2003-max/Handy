@@ -670,7 +670,8 @@
     "processing": "処理中…",
     "bubble": {
       "size": "サイズ",
-      "openApp": "Fuwaを開く"
+      "openApp": "Fuwaを開く",
+      "hide": "Remove from desktop"
     }
   },
   "whatsNew": {

@@ -1,6 +1,6 @@
 [package]
 name = "handy"
-version = "1.1.0"
+version = "1.1.1"
 description = "Fuwa - dictado por voz 100% local"
 authors = ["cjpais"]
 edition = "2021"

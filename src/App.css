@@ -255,8 +255,11 @@
     var(--glass-2) 55%,
     var(--glass-3)
   );
-  backdrop-filter: blur(28px) saturate(1.7);
-  -webkit-backdrop-filter: blur(28px) saturate(1.7);
+  /* Blur reducido de 28px->16px y saturate 1.7->1.25: el backdrop-filter se
+     recalcula en cada frame de scroll para cada tarjeta, y 28px trababa el
+     panel. Sigue viendose como vidrio, pero el scroll queda fluido. */
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
 }
 
 /* Grosor: sombra proyectada + rim de luz arriba + canto refractado abajo. */
@@ -316,7 +319,8 @@
       transparent 60%
     );
   opacity: 0.8;
-  animation: fuwa-sheen 7s ease-in-out infinite;
+  /* Sheen estatico: antes animaba opacidad en infinito en CADA tarjeta (N
+     animaciones simultaneas). El brillo se conserva, sin el costo continuo. */
 }
 
 /* Sheen más vivo en el protagonista (vidrio de cuerpo real). */
@@ -814,7 +818,7 @@ input:focus-visible + .fuwa-sw {
     rgba(52, 208, 255, 0.05) 250deg,
     transparent 340deg
   );
-  animation: fuwa-streak-rot 58s linear infinite;
+  /* veta estatica: sin rotacion continua a pantalla completa (perf) */
 }
 
 .liquid-bg .st2 {
@@ -826,7 +830,7 @@ input:focus-visible + .fuwa-sw {
     rgba(15, 231, 192, 0.04) 260deg,
     transparent 350deg
   );
-  animation: fuwa-streak-rot-rev 82s linear infinite;
+  /* veta estatica: sin rotacion continua a pantalla completa (perf) */
 }
 
 .liquid-bg .st3 {
@@ -837,7 +841,7 @@ input:focus-visible + .fuwa-sw {
     rgba(155, 107, 255, 0.05) 55%,
     transparent 70%
   );
-  animation: fuwa-streak-pan 46s ease-in-out infinite alternate;
+  /* veta estatica: sin paneo continuo a pantalla completa (perf) */
 }
 
 @keyframes fuwa-streak-rot {
@@ -880,7 +884,7 @@ input:focus-visible + .fuwa-sw {
   position: absolute;
   inset: -50%;
   opacity: 0.024;
-  animation: fuwa-wave-drift 60s linear infinite;
+  /* olas estaticas: sin desplazamiento continuo a pantalla completa (perf) */
   background-image: repeating-linear-gradient(
     90deg,
     transparent 0 7px,

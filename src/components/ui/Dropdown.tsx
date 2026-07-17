@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PortalMenu } from "./PortalMenu";
 
 export interface DropdownOption {
   value: string;
@@ -85,8 +86,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
           />
         </svg>
       </button>
-      {isOpen && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-mid-gray/80 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+      <PortalMenu
+        anchorRef={dropdownRef}
+        open={isOpen && !disabled}
+        className="bg-background border border-mid-gray/80 rounded-md shadow-lg max-h-60 overflow-y-auto"
+      >
+        <>
           {options.length === 0 ? (
             <div className="px-2 py-1 text-sm text-mid-gray">
               {t("common.noOptionsFound")}
@@ -110,8 +115,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
               </button>
             ))
           )}
-        </div>
-      )}
+        </>
+      </PortalMenu>
     </div>
   );
 };

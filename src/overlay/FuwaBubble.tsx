@@ -92,6 +92,15 @@ const FuwaBubble: React.FC<{ state: BubbleState; levels: number[] }> = ({
     closeMenu();
   };
 
+  // Remove the persistent bubble from the desktop by switching the overlay
+  // style to "minimal": the mascot goes away and recordings show the small
+  // pill instead. Reversible from Settings → Advanced → Overlay. The backend's
+  // change_overlay_style_setting hides this window when leaving bubble mode.
+  const hideBubble = () => {
+    invoke("change_overlay_style_setting", { style: "minimal" }).catch(() => {});
+    closeMenu();
+  };
+
   const onMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     pressRef.current = { x: e.screenX, y: e.screenY };
@@ -246,6 +255,9 @@ const FuwaBubble: React.FC<{ state: BubbleState; levels: number[] }> = ({
           <div className="fbm-menu-sep" />
           <button className="fbm-menu-item" onClick={openApp}>
             {t("overlay.bubble.openApp")}
+          </button>
+          <button className="fbm-menu-item" onClick={hideBubble}>
+            {t("overlay.bubble.hide")}
           </button>
         </div>
       )}

@@ -670,7 +670,8 @@
     "processing": "Traitement...",
     "bubble": {
       "size": "Taille",
-      "openApp": "Ouvrir Fuwa"
+      "openApp": "Ouvrir Fuwa",
+      "hide": "Remove from desktop"
     }
   },
   "whatsNew": {

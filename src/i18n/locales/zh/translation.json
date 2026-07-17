@@ -670,7 +670,8 @@
     "processing": "处理中...",
     "bubble": {
       "size": "大小",
-      "openApp": "打开 Fuwa"
+      "openApp": "打开 Fuwa",
+      "hide": "Remove from desktop"
     }
   },
   "whatsNew": {

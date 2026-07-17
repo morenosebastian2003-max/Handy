@@ -670,7 +670,8 @@
     "processing": "Elaborazione...",
     "bubble": {
       "size": "Dimensione",
-      "openApp": "Apri Fuwa"
+      "openApp": "Apri Fuwa",
+      "hide": "Remove from desktop"
     }
   },
   "whatsNew": {

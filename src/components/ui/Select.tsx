@@ -95,12 +95,20 @@ const selectStyles: StylesConfig<SelectOption, false> = {
   }),
   menu: (provided) => ({
     ...provided,
-    zIndex: 30,
+    zIndex: 9999,
     backgroundColor: "var(--color-background)",
     color: "var(--color-text)",
     border:
       "1px solid color-mix(in srgb, var(--color-mid-gray) 30%, transparent)",
     boxShadow: "0 10px 30px rgba(15, 15, 15, 0.2)",
+  }),
+  // The menu renders in a body-level portal (see menuPortalTarget below) to
+  // escape the liquid-glass cards' stacking contexts (backdrop-filter creates
+  // one), which otherwise paint the next card OVER an inline menu — making it
+  // look transparent / clipped. The portal needs its own high z-index.
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 9999,
   }),
   option: (base, state) => ({
     ...base,
@@ -160,6 +168,11 @@ export const Select: React.FC<SelectProps> = React.memo(
       onBlur,
       isClearable,
       styles: selectStyles,
+      // Render the menu in a portal at <body> with fixed positioning so it is
+      // never trapped behind sibling liquid-glass cards (stacking contexts).
+      menuPortalTarget:
+        typeof document !== "undefined" ? document.body : undefined,
+      menuPosition: "fixed",
     };
 
     if (isCreatable) {

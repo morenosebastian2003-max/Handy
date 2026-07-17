@@ -670,7 +670,8 @@
     "processing": "Procesando...",
     "bubble": {
       "size": "Tamaño",
-      "openApp": "Abrir Fuwa"
+      "openApp": "Abrir Fuwa",
+      "hide": "Quitar del escritorio"
     }
   },
   "whatsNew": {
