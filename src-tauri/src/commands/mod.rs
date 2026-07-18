@@ -38,6 +38,18 @@ pub fn set_bubble_menu_open(app: AppHandle, open: bool) {
     crate::overlay::apply_bubble_menu_open(&app, open);
 }
 
+/// Temporarily take the Burbuja Fuwa off the desktop: hides the overlay window
+/// WITHOUT changing `overlay_style`. The next recording re-shows the mascot
+/// (show_overlay_state calls `.show()`), so "remove from desktop" only clears
+/// the idle bubble rather than switching away from the bubble style.
+#[tauri::command]
+#[specta::specta]
+pub fn hide_bubble(app: AppHandle) {
+    if let Some(w) = app.get_webview_window("recording_overlay") {
+        let _ = w.hide();
+    }
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn is_portable() -> bool {

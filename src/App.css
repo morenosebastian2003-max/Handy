@@ -255,9 +255,13 @@
     var(--glass-2) 55%,
     var(--glass-3)
   );
-  /* Blur reducido de 28px->16px y saturate 1.7->1.25: el backdrop-filter se
-     recalcula en cada frame de scroll para cada tarjeta, y 28px trababa el
-     panel. Sigue viendose como vidrio, pero el scroll queda fluido. */
+}
+
+/* El backdrop-filter (blur del fondo) se recalcula en CADA frame de scroll por
+   cada tarjeta: con decenas de tarjetas de trabajo, eso trababa el scroll con
+   mouse. Se conserva SOLO en el hero (una instancia, .glass-t1). Las tarjetas
+   de trabajo usan un fondo mas opaco (abajo) que mantiene el look sin el costo. */
+.glass-t1 {
   backdrop-filter: blur(16px) saturate(1.25);
   -webkit-backdrop-filter: blur(16px) saturate(1.25);
 }
@@ -265,6 +269,14 @@
 /* Grosor: sombra proyectada + rim de luz arriba + canto refractado abajo. */
 .glass-t2,
 .glass-card {
+  /* Fondo mas opaco: al no llevar backdrop-filter (por perf), esto mantiene
+     el texto legible sobre el fondo liquido y conserva el aspecto de vidrio. */
+  background: linear-gradient(
+    150deg,
+    var(--glass-hi),
+    var(--glass-hi) 55%,
+    var(--glass-1)
+  );
   box-shadow:
     var(--glass-cast-md),
     var(--glass-rim-top),

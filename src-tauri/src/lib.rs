@@ -607,6 +607,7 @@ pub fn run(cli_args: CliArgs) {
             commands::toggle_transcription,
             commands::set_bubble_scale,
             commands::set_bubble_menu_open,
+            commands::hide_bubble,
             commands::is_portable,
             commands::get_app_dir_path,
             commands::get_app_settings,

@@ -92,12 +92,12 @@ const FuwaBubble: React.FC<{ state: BubbleState; levels: number[] }> = ({
     closeMenu();
   };
 
-  // Remove the persistent bubble from the desktop by switching the overlay
-  // style to "minimal": the mascot goes away and recordings show the small
-  // pill instead. Reversible from Settings → Advanced → Overlay. The backend's
-  // change_overlay_style_setting hides this window when leaving bubble mode.
+  // Take the bubble off the desktop for now. This only HIDES the overlay
+  // window (keeps the bubble style), so pressing the record shortcut brings the
+  // mascot right back — the user wanted "hide while idle", not "switch away
+  // from the mascot".
   const hideBubble = () => {
-    invoke("change_overlay_style_setting", { style: "minimal" }).catch(() => {});
+    invoke("hide_bubble").catch(() => {});
     closeMenu();
   };
 
