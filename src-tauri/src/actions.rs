@@ -17,7 +17,7 @@ use crate::TranscriptionCoordinator;
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{debug, error, warn};
 use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -25,6 +25,13 @@ use tauri::Manager;
 use tauri::{AppHandle, Emitter};
 
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
+const MIN_POST_PROCESS_TOKEN_RETENTION: f32 = 0.70;
+const POST_PROCESS_FIDELITY_RULES: &str = concat!(
+    "Fidelity safety rules: preserve every number, URL, email address, file name, ",
+    "code identifier, proper name and negation. Preserve intentional repetitions ",
+    "such as 'no, no, no'. If uncertain, keep the original words. Never return an ",
+    "empty response for a non-empty transcript."
+);
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
@@ -63,9 +70,277 @@ fn strip_invisible_chars(s: &str) -> String {
 }
 
 /// Build a system prompt from the user's prompt template.
-/// Removes `${output}` placeholder since the transcription is sent as the user message.
+/// The raw transcript is sent separately as tagged user data. Never leave an
+/// empty `<transcript>` block in the system prompt: models can interpret that as
+/// the actual input and correctly (but undesirably) return an empty response.
 fn build_system_prompt(prompt_template: &str) -> String {
-    prompt_template.replace("${output}", "").trim().to_string()
+    const EXTERNAL_TRANSCRIPT_NOTICE: &str =
+        "The raw transcript is provided separately in the user message inside <transcript> tags.";
+
+    let normalized_template = prompt_template.replace("\r\n", "\n");
+    let prompt = normalized_template
+        .replace(
+            "<transcript>\n${output}\n</transcript>",
+            EXTERNAL_TRANSCRIPT_NOTICE,
+        )
+        .replace(
+            "<transcript>${output}</transcript>",
+            EXTERNAL_TRANSCRIPT_NOTICE,
+        )
+        .replace("${output}", EXTERNAL_TRANSCRIPT_NOTICE)
+        .trim()
+        .to_string();
+    format!("{}\n\n{}", prompt, POST_PROCESS_FIDELITY_RULES)
+}
+
+/// Wrap transcript data in the exact tags referenced by Fuwa's system prompt.
+/// Escape a literal closing tag so dictated/code content cannot terminate the
+/// data section and become an instruction to the model.
+fn build_transcript_user_message(transcription: &str) -> String {
+    let escaped = transcription.replace("</transcript>", "&lt;/transcript&gt;");
+    format!("<transcript>\n{}\n</transcript>", escaped)
+}
+
+/// Legacy providers receive one user message. Keep supporting custom prompts
+/// with `${output}`, but also append the transcript when a custom prompt omitted
+/// the placeholder so the model never receives instructions without input.
+fn build_legacy_prompt(prompt_template: &str, transcription: &str) -> String {
+    if prompt_template.contains("${output}") {
+        let escaped = transcription.replace("</transcript>", "&lt;/transcript&gt;");
+        format!(
+            "{}\n\n{}",
+            prompt_template.replace("${output}", &escaped),
+            POST_PROCESS_FIDELITY_RULES
+        )
+    } else {
+        format!(
+            "{}\n\n{}\n\n{}",
+            prompt_template.trim(),
+            POST_PROCESS_FIDELITY_RULES,
+            build_transcript_user_message(transcription)
+        )
+    }
+}
+
+fn normalize_fidelity_token(token: &str) -> Option<String> {
+    let normalized: String = token
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        // Accent-only spelling fixes must not look like deleted words. Keep
+        // this intentionally small and deterministic instead of adding a new
+        // Unicode dependency for a safety check.
+        .map(|c| match c {
+            'á' | 'à' | 'ä' | 'â' | 'ã' | 'å' => 'a',
+            'é' | 'è' | 'ë' | 'ê' => 'e',
+            'í' | 'ì' | 'ï' | 'î' => 'i',
+            'ó' | 'ò' | 'ö' | 'ô' | 'õ' => 'o',
+            'ú' | 'ù' | 'ü' | 'û' => 'u',
+            'ñ' => 'n',
+            'ç' => 'c',
+            other => other,
+        })
+        .collect();
+    (!normalized.is_empty()).then_some(normalized)
+}
+
+fn is_negation(token: &str) -> bool {
+    matches!(
+        token,
+        "no" | "ni"
+            | "nunca"
+            | "jamas"
+            | "jamás"
+            | "sin"
+            | "tampoco"
+            | "nadie"
+            | "ningun"
+            | "ningún"
+            | "ninguna"
+            | "not"
+            | "never"
+            | "without"
+            | "none"
+            | "neither"
+            | "nor"
+            | "cannot"
+            | "cant"
+            | "dont"
+            | "wont"
+            | "isnt"
+            | "wasnt"
+    )
+}
+
+fn is_protected_fidelity_token(
+    source: &str,
+    normalized: &str,
+    position: usize,
+    custom_tokens: &HashSet<String>,
+) -> bool {
+    let core = source.trim_matches(|c: char| {
+        matches!(
+            c,
+            ',' | '.' | ';' | ':' | '!' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\''
+        )
+    });
+    let letters: Vec<char> = core.chars().filter(|c| c.is_alphabetic()).collect();
+    let has_upper = letters.iter().any(|c| c.is_uppercase());
+    let has_lower = letters.iter().any(|c| c.is_lowercase());
+    let starts_upper = letters.first().map(|c| c.is_uppercase()).unwrap_or(false);
+    let has_internal_upper = letters.iter().skip(1).any(|c| c.is_uppercase());
+    let looks_like_name =
+        (has_upper && has_lower && has_internal_upper) || (position > 0 && starts_upper);
+    let looks_like_identifier = core.contains("://")
+        || core.contains('@')
+        || core.contains('/')
+        || core.contains('\\')
+        || core.contains('_')
+        || core.contains("::")
+        || core.contains('.');
+
+    source.chars().any(|c| c.is_ascii_digit())
+        || is_negation(normalized)
+        || custom_tokens.contains(normalized)
+        || looks_like_identifier
+        || looks_like_name
+        || (has_upper && !has_lower && letters.len() > 1)
+}
+
+/// Reject destructive or hallucinatory LLM rewrites. This deliberately favors
+/// the raw ASR output over an uncertain polish: post-processing is optional,
+/// while losing dictated content is not.
+fn validate_post_processed_text(
+    original: &str,
+    candidate: &str,
+    custom_words: &[String],
+) -> Result<String, &'static str> {
+    let candidate = strip_invisible_chars(candidate).trim().to_string();
+    if candidate.is_empty() {
+        return Err("empty response");
+    }
+
+    let original_tokens: Vec<(&str, String)> = original
+        .split_whitespace()
+        .filter_map(|token| normalize_fidelity_token(token).map(|normalized| (token, normalized)))
+        .collect();
+    if original_tokens.is_empty() {
+        return Ok(candidate);
+    }
+
+    let candidate_tokens: Vec<String> = candidate
+        .split_whitespace()
+        .filter_map(normalize_fidelity_token)
+        .collect();
+    if candidate_tokens.is_empty() {
+        return Err("response has no lexical content");
+    }
+
+    // Formatting may add a few labels (for example Task/Context/Output), but a
+    // response that grows by more than 50% plus a small fixed allowance is much
+    // more likely to contain invented content than formatting.
+    let max_candidate_tokens = original_tokens.len() + (original_tokens.len() / 2).max(6);
+    if candidate_tokens.len() > max_candidate_tokens {
+        return Err("response added too much content");
+    }
+
+    let custom_tokens: HashSet<String> = custom_words
+        .iter()
+        .flat_map(|word| word.split_whitespace())
+        .filter_map(normalize_fidelity_token)
+        .collect();
+    let mut candidate_counts: HashMap<String, usize> = HashMap::new();
+    for token in &candidate_tokens {
+        *candidate_counts.entry(token.clone()).or_default() += 1;
+    }
+
+    let mut protected_counts: HashMap<String, usize> = HashMap::new();
+    for (position, (source, normalized)) in original_tokens.iter().enumerate() {
+        let is_repeated = position
+            .checked_sub(1)
+            .and_then(|previous| original_tokens.get(previous))
+            .is_some_and(|(_, previous)| previous == normalized)
+            || original_tokens
+                .get(position + 1)
+                .is_some_and(|(_, next)| next == normalized);
+        if is_repeated || is_protected_fidelity_token(source, normalized, position, &custom_tokens)
+        {
+            *protected_counts.entry(normalized.clone()).or_default() += 1;
+        }
+    }
+    if protected_counts
+        .iter()
+        .any(|(token, count)| candidate_counts.get(token).copied().unwrap_or(0) < *count)
+    {
+        return Err("response removed protected content or a repeated word");
+    }
+
+    let mut remaining_counts = candidate_counts;
+    let mut retained = 0usize;
+    for (_, token) in &original_tokens {
+        if let Some(count) = remaining_counts.get_mut(token) {
+            if *count > 0 {
+                *count -= 1;
+                retained += 1;
+            }
+        }
+    }
+    let required =
+        ((original_tokens.len() as f32) * MIN_POST_PROCESS_TOKEN_RETENTION).ceil() as usize;
+    if retained < required {
+        return Err("response removed or replaced too many words");
+    }
+
+    Ok(candidate)
+}
+
+fn accept_post_processed_text(
+    original: &str,
+    candidate: &str,
+    custom_words: &[String],
+    provider_id: &str,
+) -> Option<String> {
+    match validate_post_processed_text(original, candidate, custom_words) {
+        Ok(candidate) => Some(candidate),
+        Err(reason) => {
+            warn!(
+                "Rejected post-processing response from provider '{}': {}. Preserving original transcription.",
+                provider_id, reason
+            );
+            None
+        }
+    }
+}
+
+fn structured_transcription_candidate(content: &str) -> Option<String> {
+    let trimmed = content.trim();
+    let candidate_source = if trimmed.starts_with("```") {
+        let (_, body) = trimmed.split_once('\n')?;
+        body.strip_suffix("```")?.trim()
+    } else {
+        trimmed
+    };
+
+    match serde_json::from_str::<serde_json::Value>(candidate_source) {
+        Ok(json) => json
+            .get(TRANSCRIPTION_FIELD)
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned),
+        // Some OpenAI-compatible providers ignore response_format and return
+        // plain text. Accept that only when it is clearly not malformed JSON;
+        // the same fidelity guard still runs before it can replace the original.
+        Err(_) if !candidate_source.starts_with('{') && !candidate_source.starts_with('[') => {
+            Some(candidate_source.to_string())
+        }
+        Err(_) => None,
+    }
+}
+
+fn should_retry_without_schema(error: &str) -> bool {
+    // Retry only when the endpoint rejected the structured-output request
+    // itself. Timeouts, auth failures, rate limits and server failures should
+    // immediately preserve the original instead of doubling the wait/cost.
+    error.contains("status 400 ") || error.contains("status 422 ")
 }
 
 /// Returns `true` when a transcription has no meaningful content to
@@ -259,7 +534,7 @@ async fn post_process_transcription(
         debug!("Using structured outputs for provider '{}'", provider.id);
 
         let system_prompt = build_system_prompt(&prompt);
-        let user_content = transcription.to_string();
+        let user_content = build_transcript_user_message(transcription);
 
         // Handle Apple Intelligence separately since it uses native Swift APIs
         if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
@@ -279,16 +554,19 @@ async fn post_process_transcription(
                     token_limit,
                 ) {
                     Ok(result) => {
-                        if result.trim().is_empty() {
-                            debug!("Apple Intelligence returned an empty response");
-                            None
-                        } else {
-                            let result = strip_invisible_chars(&result);
+                        if let Some(result) = accept_post_processed_text(
+                            transcription,
+                            &result,
+                            &settings.custom_words,
+                            &provider.id,
+                        ) {
                             debug!(
                                 "Apple Intelligence post-processing succeeded. Output length: {} chars",
                                 result.len()
                             );
                             Some(result)
+                        } else {
+                            None
                         }
                     }
                     Err(err) => {
@@ -331,31 +609,26 @@ async fn post_process_transcription(
         .await
         {
             Ok(Some(content)) => {
-                // Parse the JSON response to extract the transcription field
-                match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(json) => {
-                        if let Some(transcription_value) =
-                            json.get(TRANSCRIPTION_FIELD).and_then(|t| t.as_str())
-                        {
-                            let result = strip_invisible_chars(transcription_value);
-                            debug!(
-                                "Structured output post-processing succeeded for provider '{}'. Output length: {} chars",
-                                provider.id,
-                                result.len()
-                            );
-                            return Some(result);
-                        } else {
-                            error!("Structured output response missing 'transcription' field");
-                            return Some(strip_invisible_chars(&content));
-                        }
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to parse structured output JSON: {}. Returning raw content.",
-                            e
-                        );
-                        return Some(strip_invisible_chars(&content));
-                    }
+                let Some(candidate) = structured_transcription_candidate(&content) else {
+                    error!(
+                        "Structured output response was malformed or missing 'transcription'; preserving original transcription"
+                    );
+                    return None;
+                };
+                if let Some(result) = accept_post_processed_text(
+                    transcription,
+                    &candidate,
+                    &settings.custom_words,
+                    &provider.id,
+                ) {
+                    debug!(
+                        "Structured output post-processing succeeded for provider '{}'. Output length: {} chars",
+                        provider.id,
+                        result.len()
+                    );
+                    return Some(result);
+                } else {
+                    return None;
                 }
             }
             Ok(None) => {
@@ -363,17 +636,25 @@ async fn post_process_transcription(
                 return None;
             }
             Err(e) => {
-                warn!(
-                    "Structured output failed for provider '{}': {}. Falling back to legacy mode.",
-                    provider.id, e
-                );
-                // Fall through to legacy mode below
+                if should_retry_without_schema(&e) {
+                    warn!(
+                        "Provider '{}' rejected structured output: {}. Retrying once without a schema.",
+                        provider.id, e
+                    );
+                    // Fall through to legacy mode below.
+                } else {
+                    error!(
+                        "Structured post-processing failed for provider '{}': {}. Preserving original transcription.",
+                        provider.id, e
+                    );
+                    return None;
+                }
             }
         }
     }
 
-    // Legacy mode: Replace ${output} variable in the prompt with the actual text
-    let processed_prompt = prompt.replace("${output}", transcription);
+    // Legacy mode: send instructions and transcript in one user message.
+    let processed_prompt = build_legacy_prompt(&prompt, transcription);
     debug!("Processed prompt length: {} chars", processed_prompt.len());
 
     match crate::llm_client::send_chat_completion(
@@ -387,13 +668,21 @@ async fn post_process_transcription(
     .await
     {
         Ok(Some(content)) => {
-            let content = strip_invisible_chars(&content);
-            debug!(
-                "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
-                provider.id,
-                content.len()
-            );
-            Some(content)
+            if let Some(content) = accept_post_processed_text(
+                transcription,
+                &content,
+                &settings.custom_words,
+                &provider.id,
+            ) {
+                debug!(
+                    "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
+                    provider.id,
+                    content.len()
+                );
+                Some(content)
+            } else {
+                None
+            }
         }
         Ok(None) => {
             error!("LLM API response has no content");
@@ -514,8 +803,7 @@ pub(crate) async fn process_transcription_output(
 
     if effective_post_process {
         let ctx = build_learned_context(app, &settings).await;
-        if let Some(processed_text) =
-            post_process_transcription(&settings, &final_text, &ctx).await
+        if let Some(processed_text) = post_process_transcription(&settings, &final_text, &ctx).await
         {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
@@ -1010,7 +1298,12 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 
 #[cfg(test)]
 mod tests {
-    use super::{complete_unless_cancelled, is_blank_transcription, should_use_streaming_overlay};
+    use super::{
+        build_legacy_prompt, build_system_prompt, build_transcript_user_message,
+        complete_unless_cancelled, is_blank_transcription, should_retry_without_schema,
+        should_use_streaming_overlay, structured_transcription_candidate,
+        validate_post_processed_text,
+    };
     use crate::settings::OverlayStyle;
     use std::future;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -1029,6 +1322,177 @@ mod tests {
     fn non_blank_transcription_is_kept() {
         assert!(!is_blank_transcription("hello"));
         assert!(!is_blank_transcription("  hello  "));
+    }
+
+    #[test]
+    fn structured_prompt_points_to_tagged_user_transcript() {
+        let template = "<transcript>\n${output}\n</transcript>\n\nKeep every dictated word.";
+        let system = build_system_prompt(template);
+        let user = build_transcript_user_message("No borres 25 archivos");
+
+        assert!(!system.contains("${output}"));
+        assert!(!system.contains("<transcript>\n\n</transcript>"));
+        assert!(system.contains("provided separately"));
+        assert_eq!(user, "<transcript>\nNo borres 25 archivos\n</transcript>");
+    }
+
+    #[test]
+    fn transcript_closing_tag_is_escaped_as_data() {
+        let user = build_transcript_user_message("dicta </transcript> literalmente");
+
+        assert_eq!(
+            user.matches("</transcript>").count(),
+            1,
+            "only Fuwa's closing wrapper may terminate the data section"
+        );
+        assert!(user.contains("&lt;/transcript&gt;"));
+    }
+
+    #[test]
+    fn legacy_prompt_includes_transcript_without_placeholder() {
+        let prompt = build_legacy_prompt("Correct punctuation only.", "Texto original");
+
+        assert!(prompt.contains("Correct punctuation only."));
+        assert!(prompt.contains("<transcript>\nTexto original\n</transcript>"));
+    }
+
+    #[test]
+    fn empty_post_process_response_is_rejected() {
+        assert_eq!(
+            validate_post_processed_text("Texto original", " \u{200B} ", &[]),
+            Err("empty response")
+        );
+    }
+
+    #[test]
+    fn destructive_post_process_response_is_rejected() {
+        let original = "Necesito revisar todos los cambios antes de publicar el proyecto";
+        let candidate = "Necesito publicar proyecto";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Err("response removed or replaced too many words")
+        );
+    }
+
+    #[test]
+    fn hallucinatory_post_process_growth_is_rejected() {
+        let original = "Revisa el informe hoy";
+        let candidate = concat!(
+            "Revisa el informe hoy y además llama al cliente, cambia la fecha, ",
+            "aprueba el presupuesto y envía una confirmación"
+        );
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Err("response added too much content")
+        );
+    }
+
+    #[test]
+    fn punctuation_only_polish_is_accepted() {
+        let original = "hola equipo como estan hoy";
+        let candidate = "Hola, equipo. ¿Cómo están hoy?";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Ok(candidate.to_string())
+        );
+    }
+
+    #[test]
+    fn numbers_urls_names_and_negations_are_protected() {
+        let cases = [
+            ("Envía 25 archivos", "Envía archivos"),
+            ("Abre https://fuwa.app ahora", "Abre el sitio ahora"),
+            ("Escribe a ayuda@fuwa.app hoy", "Escribe al soporte hoy"),
+            ("Habla con Sebastian mañana", "Habla con él mañana"),
+            ("Edita config_file.rs ahora", "Edita el archivo ahora"),
+            ("No publiques todavía", "Publica todavía"),
+        ];
+
+        for (original, candidate) in cases {
+            assert_eq!(
+                validate_post_processed_text(original, candidate, &[]),
+                Err("response removed protected content or a repeated word"),
+                "failed to protect content in: {original}"
+            );
+        }
+    }
+
+    #[test]
+    fn repeated_negations_must_not_be_collapsed() {
+        let original = "No no no lo publiques todavía";
+        let candidate = "No lo publiques todavía";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Err("response removed protected content or a repeated word")
+        );
+    }
+
+    #[test]
+    fn repeated_emphasis_must_not_be_collapsed() {
+        let original = "Sí sí sí quiero eso";
+        let candidate = "Sí quiero eso";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Err("response removed protected content or a repeated word")
+        );
+    }
+
+    #[test]
+    fn configured_custom_words_are_protected() {
+        let custom_words = vec!["Canary".to_string()];
+        let original = "canary funciona correctamente hoy";
+        let candidate = "Funciona correctamente hoy";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &custom_words),
+            Err("response removed protected content or a repeated word")
+        );
+    }
+
+    #[test]
+    fn structured_candidate_requires_expected_field_for_json() {
+        assert_eq!(
+            structured_transcription_candidate(r#"{"transcription":"Texto final"}"#),
+            Some("Texto final".to_string())
+        );
+        assert_eq!(
+            structured_transcription_candidate(r#"{"message":"Texto final"}"#),
+            None
+        );
+        assert_eq!(structured_transcription_candidate("{malformed"), None);
+        assert_eq!(
+            structured_transcription_candidate("Texto final"),
+            Some("Texto final".to_string())
+        );
+        assert_eq!(
+            structured_transcription_candidate("```json\n{\"transcription\":\"Texto final\"}\n```"),
+            Some("Texto final".to_string())
+        );
+        assert_eq!(
+            structured_transcription_candidate("```json\n{malformed\n```"),
+            None
+        );
+    }
+
+    #[test]
+    fn schema_fallback_does_not_retry_timeouts_or_server_errors() {
+        assert!(should_retry_without_schema(
+            "API request failed with status 400 Bad Request"
+        ));
+        assert!(should_retry_without_schema(
+            "API request failed with status 422 Unprocessable Entity"
+        ));
+        assert!(!should_retry_without_schema(
+            "HTTP request failed: operation timed out"
+        ));
+        assert!(!should_retry_without_schema(
+            "API request failed with status 500 Internal Server Error"
+        ));
     }
 
     #[test]

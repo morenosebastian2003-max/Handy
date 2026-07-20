@@ -1066,9 +1066,14 @@ impl TranscriptionManager {
         };
 
         let settings = get_settings(&self.app_handle);
+        let active_model = self
+            .get_current_model()
+            .unwrap_or_else(|| settings.selected_model.clone());
+        let effective_language =
+            effective_language_for_model(&settings, self.model_manager.as_ref(), &active_model);
         // Streaming models do not receive a decode prompt, so custom words
         // always go through the shared fuzzy post-correction path.
-        let filtered = post_process_transcription_text(raw, &settings, false);
+        let filtered = post_process_transcription_text(raw, &settings, &effective_language, false);
 
         self.maybe_unload_immediately("streaming transcription");
         Ok(Some(filtered))
@@ -1394,7 +1399,12 @@ impl TranscriptionManager {
         // family). We don't pass a prompt to non-whisper models (it requires the
         // whisper-kind run extension), so they still get fuzzy correction here,
         // same as the ONNX engines.
-        let filtered_result = post_process_transcription_text(result, &settings, model_is_whisper);
+        let filtered_result = post_process_transcription_text(
+            result,
+            &settings,
+            &validated_language,
+            model_is_whisper,
+        );
 
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
@@ -1604,6 +1614,7 @@ fn transcribe_cpp_run_plan(
 fn post_process_transcription_text(
     raw: String,
     settings: &AppSettings,
+    effective_language: &str,
     custom_words_already_prompted: bool,
 ) -> String {
     let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
@@ -1618,7 +1629,7 @@ fn post_process_transcription_text(
 
     filter_transcription_output(
         &corrected,
-        &settings.app_language,
+        effective_language,
         &settings.custom_filler_words,
     )
 }
@@ -1929,6 +1940,22 @@ mod tests {
         assert!(matches!(plan.task, Task::Transcribe));
         assert_eq!(plan.language.as_deref(), Some("es"));
         assert_eq!(plan.target_language, None);
+    }
+
+    #[test]
+    fn local_cleanup_uses_transcription_language_not_ui_language() {
+        let mut settings = AppSettings::default();
+        settings.app_language = "en".to_string();
+        settings.custom_filler_words = None;
+
+        let result = post_process_transcription_text(
+            "ha sido un buen día".to_string(),
+            &settings,
+            "es",
+            false,
+        );
+
+        assert_eq!(result, "ha sido un buen día");
     }
 }
 

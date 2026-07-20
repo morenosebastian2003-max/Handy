@@ -3,6 +3,9 @@ use log::debug;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, REFERER, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::time::Duration;
+
+const LLM_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Serialize)]
 struct ChatMessage {
@@ -101,6 +104,9 @@ fn create_client(provider: &PostProcessProvider, api_key: &str) -> Result<reqwes
     let headers = build_headers(provider, api_key)?;
     reqwest::Client::builder()
         .default_headers(headers)
+        // Post-processing is optional. A stalled provider must never block the
+        // original local transcription from being pasted indefinitely.
+        .timeout(LLM_REQUEST_TIMEOUT)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))
 }
