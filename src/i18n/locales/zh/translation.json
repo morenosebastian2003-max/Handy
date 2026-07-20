@@ -599,6 +599,7 @@
       "description": "The formatting adapts to the app you are writing in — no need to ask.",
       "enableHint": "Turn on post-processing so the camouflage applies to your dictations.",
       "modes": {
+        "auto": "自动",
         "email": "Email",
         "code": "Code",
         "notes": "Notes",

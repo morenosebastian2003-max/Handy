@@ -105,6 +105,23 @@ const BUBBLE_BOTTOM_MARGIN: f64 = 72.0;
 /// state changes — the spot the user dragged it to wins.
 static BUBBLE_PLACED: AtomicBool = AtomicBool::new(false);
 
+/// The user chose "Quitar del escritorio" (hide the bubble). While true, the
+/// watchdog must NOT re-show it — otherwise it would pop back within 3s and
+/// defeat the hide. Cleared automatically the next time the bubble is shown for
+/// real (e.g. on recording via `show_overlay_state`), so recording brings the
+/// mascot back as the user expects.
+static BUBBLE_USER_HIDDEN: AtomicBool = AtomicBool::new(false);
+
+/// Hide the persistent bubble because the user asked to ("Quitar del
+/// escritorio"): marks it user-hidden (so the watchdog leaves it hidden) and
+/// hides the window. Recording re-shows it and clears the flag.
+pub fn hide_bubble_by_user(app_handle: &AppHandle) {
+    BUBBLE_USER_HIDDEN.store(true, Ordering::Relaxed);
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.hide();
+    }
+}
+
 /// Overlay window size (logical) for a given UI state.
 fn overlay_dimensions(state: &str) -> (f64, f64) {
     if state == "streaming" {
@@ -439,6 +456,13 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
     }
     let bubble = settings.overlay_style == OverlayStyle::Bubble && state != "streaming";
 
+    // The bubble is being shown for real now (recording/idle), which overrides a
+    // previous "Quitar del escritorio": clear the user-hidden flag so it stays
+    // visible again (and the watchdog resumes keeping it alive).
+    if bubble {
+        BUBBLE_USER_HIDDEN.store(false, Ordering::Relaxed);
+    }
+
     // Size the overlay for this state (compact vs. streaming), then position it.
     let (width, height) = if bubble {
         let scale = bubble_scale();
@@ -512,6 +536,51 @@ pub fn show_bubble_idle(app_handle: &AppHandle) {
     if settings.overlay_style == OverlayStyle::Bubble {
         show_overlay_state(app_handle, "idle");
     }
+}
+
+/// Keeps the persistent Burbuja Fuwa alive between shows. Windows can silently
+/// hide OR demote an `always_on_top`, non-activating, transparent tool window
+/// when another app goes full-screen or another window claims the top of the
+/// Z-order — which made the bubble "disappear" until the next explicit show.
+/// This re-shows it if the OS hid it and (on Windows) re-asserts topmost. It
+/// deliberately does NOT call `show_overlay_state`, so the current face/state
+/// (idle, recording, …) is never reset. No-ops unless the bubble is active.
+pub fn ensure_bubble_alive(app_handle: &AppHandle) {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_style != OverlayStyle::Bubble {
+        return;
+    }
+    // Respect the user's "Quitar del escritorio": don't fight their choice to
+    // hide the bubble. Recording (show_overlay_state) clears this and brings it
+    // back.
+    if BUBBLE_USER_HIDDEN.load(Ordering::Relaxed) {
+        return;
+    }
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        // Re-show only when the OS truly hid it, to avoid needless churn.
+        if !overlay_window.is_visible().unwrap_or(true) {
+            let _ = overlay_window.show();
+        }
+        // `is_visible()` stays true when the window is merely demoted behind
+        // another topmost window, so re-assert the Z-order every tick. The call
+        // is non-activating and doesn't move/resize, so it's invisible to the
+        // user when already on top.
+        #[cfg(target_os = "windows")]
+        force_overlay_topmost(&overlay_window);
+    }
+}
+
+/// Spawns a lightweight background loop that keeps the bubble on top for the
+/// app's lifetime. One settings read plus at most one non-activating Win32
+/// `SetWindowPos` every few seconds — cheap and idempotent while the bubble is
+/// already visible and topmost. Safe to start regardless of the current style;
+/// it self-guards on `OverlayStyle::Bubble`.
+pub fn start_bubble_watchdog(app_handle: &AppHandle) {
+    let ah = app_handle.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        ensure_bubble_alive(&ah);
+    });
 }
 
 /// Shows the larger streaming overlay that displays live transcription text

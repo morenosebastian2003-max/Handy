@@ -11,6 +11,7 @@ const CARD_EMOJI = "🦎";
 // reusa el mismo camino que PostProcessingSettingsPrompts:
 // updateSetting("post_process_selected_prompt_id") → set_post_process_selected_prompt.
 const MODES = [
+  { id: "fuwa_camuflaje_auto", emoji: "🎯", labelKey: "auto" },
   { id: "fuwa_camuflaje_email", emoji: "✉️", labelKey: "email" },
   { id: "fuwa_camuflaje_codigo", emoji: "💻", labelKey: "code" },
   { id: "fuwa_camuflaje_notas", emoji: "📝", labelKey: "notes" },

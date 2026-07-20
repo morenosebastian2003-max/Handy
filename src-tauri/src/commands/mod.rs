@@ -45,9 +45,9 @@ pub fn set_bubble_menu_open(app: AppHandle, open: bool) {
 #[tauri::command]
 #[specta::specta]
 pub fn hide_bubble(app: AppHandle) {
-    if let Some(w) = app.get_webview_window("recording_overlay") {
-        let _ = w.hide();
-    }
+    // Marks the bubble user-hidden so the watchdog (which otherwise re-shows the
+    // bubble every few seconds) leaves it hidden; recording brings it back.
+    crate::overlay::hide_bubble_by_user(&app);
 }
 
 #[tauri::command]

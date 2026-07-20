@@ -1,4 +1,6 @@
 mod actions;
+mod active_app;
+mod learned_context;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod apple_intelligence;
 mod audio_feedback;
@@ -309,6 +311,11 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+
+    // Keep the persistent bubble on top: Windows silently demotes/hides
+    // always-on-top tool windows when another app grabs the front, so a light
+    // watchdog re-asserts its Z-order. Self-guards on the bubble style.
+    overlay::start_bubble_watchdog(app_handle);
 
     // Burbuja Fuwa is persistent: bring it up in idle state right after boot.
     // Small delay so the overlay webview has loaded its listeners; the
@@ -823,6 +830,7 @@ pub fn run(cli_args: CliArgs) {
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)
                     .maximizable(true)
+                    .maximized(true)
                     .visible(false);
 
             if let Some(data_dir) = portable::data_dir() {

@@ -599,6 +599,7 @@
       "description": "El formato se adapta a la app donde escribes, sin que se lo pidas.",
       "enableHint": "Activa el post proceso para que el camuflaje se aplique a tus dictados.",
       "modes": {
+        "auto": "Auto",
         "email": "Email",
         "code": "Código",
         "notes": "Notas",

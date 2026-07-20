@@ -101,7 +101,45 @@ fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool
     style == OverlayStyle::Live && is_streaming
 }
 
-async fn post_process_transcription(settings: &AppSettings, transcription: &str) -> Option<String> {
+/// Reúne el contexto para la corrección: situación (app activa + idioma) y el
+/// glosario aprendido del historial reciente (patrones de términos del usuario).
+/// Todo local; solo la categoría de app y el glosario llegan al LLM.
+async fn build_learned_context(
+    app: &AppHandle,
+    settings: &AppSettings,
+) -> crate::learned_context::LearnedContext {
+    let app_category = crate::active_app::active_app_category();
+    let language = settings.selected_language.clone();
+
+    // Historial reciente (texto ya corregido) para minar el glosario del usuario.
+    let mut texts: Vec<String> = Vec::new();
+    if let Some(history) = app.try_state::<Arc<HistoryManager>>() {
+        if let Ok(page) = history.get_history_entries(None, Some(50)).await {
+            for e in page.entries {
+                let t = e
+                    .post_processed_text
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or(e.transcription_text);
+                if !t.trim().is_empty() {
+                    texts.push(t);
+                }
+            }
+        }
+    }
+
+    let glossary = crate::learned_context::mine_glossary(&texts, &settings.custom_words, 40);
+    crate::learned_context::LearnedContext {
+        app_category,
+        language,
+        glossary,
+    }
+}
+
+async fn post_process_transcription(
+    settings: &AppSettings,
+    transcription: &str,
+    ctx: &crate::learned_context::LearnedContext,
+) -> Option<String> {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
         return None;
@@ -115,11 +153,19 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         }
     };
 
-    let model = settings
+    let mut model = settings
         .post_process_models
         .get(&provider.id)
         .cloned()
         .unwrap_or_default();
+
+    // Fuwa — "sin que se lo pidas": si el usuario no eligió un modelo, usar el
+    // default sensato del proveedor (p.ej. OpenRouter → google/gemini-2.5-flash)
+    // en vez de saltar el post-proceso. Así conectar la key basta para que
+    // funcione, sin escoger de una lista críptica de modelos.
+    if model.trim().is_empty() {
+        model = crate::settings::default_model_for_provider(&provider.id);
+    }
 
     if model.trim().is_empty() {
         debug!(
@@ -137,18 +183,39 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         }
     };
 
-    let prompt = match settings
-        .post_process_prompts
-        .iter()
-        .find(|prompt| prompt.id == selected_prompt_id)
-    {
-        Some(prompt) => prompt.prompt.clone(),
-        None => {
-            debug!(
-                "Post-processing skipped because prompt '{}' was not found",
-                selected_prompt_id
-            );
-            return None;
+    // Modo Camuflaje: en "Auto" el prompt se construye FRESCO desde el código
+    // según la app detectada (así las mejoras de formato aplican de inmediato,
+    // sin depender de lo que haya guardado en el store). Solo sale de este equipo
+    // la CATEGORÍA (email/código/chat/notas), nunca el título de la ventana. En un
+    // modo manual se respeta el prompt guardado (el usuario pudo editarlo).
+    let prompt: String = if selected_prompt_id == "fuwa_camuflaje_auto" {
+        debug!("Camuflaje Auto: categoría '{}'", ctx.app_category);
+        crate::settings::camouflage_prompt(&ctx.app_category)
+    } else if let Some(cat) = crate::settings::builtin_camouflage_category(&selected_prompt_id) {
+        // Chip built-in (Email/Código/Notas/Slack/Prompt/Pulido): reglas frescas
+        // desde código, no el prompt guardado (que puede estar viejo).
+        crate::settings::camouflage_prompt(cat)
+    } else {
+        match settings
+            .post_process_prompts
+            .iter()
+            .find(|prompt| prompt.id == selected_prompt_id)
+            .or_else(|| {
+                settings
+                    .post_process_prompts
+                    .iter()
+                    .find(|prompt| prompt.id == "default_improve_transcriptions")
+            })
+            .or_else(|| settings.post_process_prompts.first())
+        {
+            Some(prompt) => prompt.prompt.clone(),
+            None => {
+                debug!(
+                    "Post-processing skipped because no usable prompt was found (wanted '{}')",
+                    selected_prompt_id
+                );
+                return None;
+            }
         }
     };
 
@@ -156,6 +223,10 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         debug!("Post-processing skipped because the selected prompt is empty");
         return None;
     }
+
+    // Antepone el bloque de contexto (situación + glosario aprendido del
+    // historial) al prompt, para que el LLM entienda y personalice la corrección.
+    let prompt = crate::learned_context::prepend_context(&prompt, ctx);
 
     debug!(
         "Starting LLM post-processing with provider '{}' (model: {})",
@@ -434,8 +505,18 @@ pub(crate) async fn process_transcription_output(
         final_text = converted_text;
     }
 
-    if post_process {
-        if let Some(processed_text) = post_process_transcription(&settings, &final_text).await {
+    // Fuwa — cumplir la promesa "sin que se lo pidas": si el usuario ya activó
+    // el Post Proceso (y eligió modelo + prompt), TODO dictado se pule con su
+    // modelo, sin necesitar el atajo dedicado. `post_process` (atajo explícito)
+    // sigue funcionando como override. Si falta configuración,
+    // post_process_transcription devuelve None y caemos al texto crudo.
+    let effective_post_process = post_process || settings.post_process_enabled;
+
+    if effective_post_process {
+        let ctx = build_learned_context(app, &settings).await;
+        if let Some(processed_text) =
+            post_process_transcription(&settings, &final_text, &ctx).await
+        {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
 
