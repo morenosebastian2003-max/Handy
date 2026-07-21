@@ -1,6 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSettings } from "../../../hooks/useSettings";
-import { commands, type PostProcessProvider } from "@/bindings";
+import {
+  commands,
+  type ApiKeyStorageStatus,
+  type PostProcessProvider,
+} from "@/bindings";
 import type { ModelOption } from "./types";
 import type { DropdownOption } from "../../ui/Dropdown";
 
@@ -14,8 +18,10 @@ type PostProcessProviderState = {
   baseUrl: string;
   handleBaseUrlChange: (value: string) => void;
   isBaseUrlUpdating: boolean;
-  apiKey: string;
-  handleApiKeyChange: (value: string) => void;
+  apiKeyStatus: ApiKeyStorageStatus;
+  hasApiKey: boolean;
+  handleApiKeySave: (value: string) => Promise<void>;
+  handleApiKeyDelete: () => Promise<void>;
   isApiKeyUpdating: boolean;
   model: string;
   handleModelChange: (value: string) => void;
@@ -37,6 +43,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     setPostProcessProvider,
     updatePostProcessBaseUrl,
     updatePostProcessApiKey,
+    deletePostProcessApiKey,
     updatePostProcessModel,
     fetchPostProcessModels,
     postProcessModelOptions,
@@ -62,7 +69,9 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
-  const apiKey = settings?.post_process_api_keys?.[selectedProviderId] ?? "";
+  const apiKeyStatus =
+    settings?.post_process_api_key_status?.[selectedProviderId] ?? "missing";
+  const hasApiKey = apiKeyStatus !== "missing";
   const model = settings?.post_process_models?.[selectedProviderId] ?? "";
 
   const providerOptions = useMemo<DropdownOption[]>(() => {
@@ -98,9 +107,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       // to avoid unnecessary backend errors.
       if (providerId !== APPLE_PROVIDER_ID) {
         const provider = providers.find((p) => p.id === providerId);
-        const apiKey = settings?.post_process_api_keys?.[providerId] ?? "";
+        const apiKeyStatus =
+          settings?.post_process_api_key_status?.[providerId] ?? "missing";
         const hasBaseUrl = (provider?.base_url ?? "").trim() !== "";
-        const hasApiKey = apiKey.trim() !== "";
+        const hasApiKey = apiKeyStatus !== "missing";
 
         if (provider?.id === "custom" ? hasBaseUrl : hasApiKey) {
           void fetchPostProcessModels(providerId);
@@ -129,15 +139,16 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     [selectedProvider, baseUrl, updatePostProcessBaseUrl],
   );
 
-  const handleApiKeyChange = useCallback(
-    (value: string) => {
-      const trimmed = value.trim();
-      if (trimmed !== apiKey) {
-        void updatePostProcessApiKey(selectedProviderId, trimmed);
-      }
+  const handleApiKeySave = useCallback(
+    async (value: string) => {
+      await updatePostProcessApiKey(selectedProviderId, value.trim());
     },
-    [apiKey, selectedProviderId, updatePostProcessApiKey],
+    [selectedProviderId, updatePostProcessApiKey],
   );
+
+  const handleApiKeyDelete = useCallback(async () => {
+    await deletePostProcessApiKey(selectedProviderId);
+  }, [deletePostProcessApiKey, selectedProviderId]);
 
   const handleModelChange = useCallback(
     (value: string) => {
@@ -219,8 +230,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     baseUrl,
     handleBaseUrlChange,
     isBaseUrlUpdating,
-    apiKey,
-    handleApiKeyChange,
+    apiKeyStatus,
+    hasApiKey,
+    handleApiKeySave,
+    handleApiKeyDelete,
     isApiKeyUpdating,
     model,
     handleModelChange,

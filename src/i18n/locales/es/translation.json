@@ -409,8 +409,30 @@
         },
         "apiKey": {
           "title": "Clave API",
-          "description": "Clave API para el proveedor seleccionado.",
-          "placeholder": "sk-..."
+          "description": "Clave API para el proveedor seleccionado. Se guarda en el sistema operativo y nunca se incluye en el instalador.",
+          "placeholder": "sk-...",
+          "configuredPlaceholder": "Escribe una clave nueva para reemplazar la guardada",
+          "save": "Guardar clave",
+          "saving": "Guardando...",
+          "delete": "Eliminar clave",
+          "error": "No se pudo guardar o verificar la clave. Revísala y vuelve a intentarlo.",
+          "deleted": "La clave API fue eliminada.",
+          "secure": "Clave guardada de forma segura por tu sistema operativo.",
+          "localPlaintext": "Esta plataforma todavía guarda la clave localmente sin cifrado del sistema. No compartas la carpeta de datos de FUWA."
+        },
+        "usage": {
+          "title": "Control de uso mensual",
+          "description": "Cantidad máxima local de postprocesos por mes calendario. Usa 0 para no establecer un límite local.",
+          "limitLabel": "Límite mensual de postprocesos",
+          "save": "Guardar límite",
+          "saving": "Guardando...",
+          "providerLimit": "Límite de gasto del proveedor",
+          "progress": "Has usado {{used}} de {{limit}} postprocesos en {{month}}.",
+          "unlimited": "Has usado {{used}} postprocesos en {{month}}. No hay límite local activo.",
+          "localNotice": "Este es un límite de seguridad local, no un límite de dinero. Configura también el límite de gasto del proveedor.",
+          "error": "No se pudo guardar el límite mensual.",
+          "invalid": "Escribe un número entero entre 0 y 1.000.000.",
+          "limitReached": "Alcanzaste el límite mensual de postprocesos. FUWA conservó la transcripción original."
         },
         "model": {
           "title": "Modelo",

@@ -68,13 +68,13 @@ pub fn get_app_dir_path(app: AppHandle) -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub fn get_app_settings(app: AppHandle) -> Result<AppSettings, String> {
-    Ok(get_settings(&app))
+    Ok(get_settings(&app).sanitized_for_frontend())
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn get_default_settings() -> Result<AppSettings, String> {
-    Ok(crate::settings::get_default_settings())
+    Ok(crate::settings::get_default_settings().sanitized_for_frontend())
 }
 
 #[tauri::command]

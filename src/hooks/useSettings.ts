@@ -39,6 +39,8 @@ interface UseSettingsReturn {
     providerId: string,
     apiKey: string,
   ) => Promise<void>;
+  deletePostProcessApiKey: (providerId: string) => Promise<void>;
+  updatePostProcessMonthlyLimit: (limit: number) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
 }
@@ -72,6 +74,8 @@ export const useSettings = (): UseSettingsReturn => {
     setPostProcessProvider: store.setPostProcessProvider,
     updatePostProcessBaseUrl: store.updatePostProcessBaseUrl,
     updatePostProcessApiKey: store.updatePostProcessApiKey,
+    deletePostProcessApiKey: store.deletePostProcessApiKey,
+    updatePostProcessMonthlyLimit: store.updatePostProcessMonthlyLimit,
     updatePostProcessModel: store.updatePostProcessModel,
     fetchPostProcessModels: store.fetchPostProcessModels,
   };

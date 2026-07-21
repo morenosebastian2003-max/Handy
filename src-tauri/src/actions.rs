@@ -411,6 +411,7 @@ async fn build_learned_context(
 }
 
 async fn post_process_transcription(
+    app: &AppHandle,
     settings: &AppSettings,
     transcription: &str,
     ctx: &crate::learned_context::LearnedContext,
@@ -508,11 +509,39 @@ async fn post_process_transcription(
         provider.id, model
     );
 
-    let api_key = settings
-        .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+    let api_key = if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        String::new()
+    } else {
+        let api_key = match crate::secret_store::load_api_key(settings, &provider.id) {
+            Ok(api_key) => api_key,
+            Err(error) => {
+                error!(
+                    "Could not load API key for provider '{}': {}. Preserving original transcription.",
+                    provider.id, error
+                );
+                return None;
+            }
+        };
+
+        if api_key.trim().is_empty() && provider.id != "custom" {
+            debug!(
+                "Post-processing skipped because provider '{}' has no API key",
+                provider.id
+            );
+            return None;
+        }
+
+        if let Err(error) = crate::settings::reserve_post_process_usage(app) {
+            warn!(
+                "Post-processing skipped for provider '{}': {}",
+                provider.id, error
+            );
+            let _ = app.emit("post-process-limit-reached", ());
+            return None;
+        }
+
+        api_key
+    };
 
     // Disable reasoning for providers where post-processing rarely benefits from it.
     // - custom: top-level reasoning_effort (works for local OpenAI-compat servers)
@@ -803,7 +832,8 @@ pub(crate) async fn process_transcription_output(
 
     if effective_post_process {
         let ctx = build_learned_context(app, &settings).await;
-        if let Some(processed_text) = post_process_transcription(&settings, &final_text, &ctx).await
+        if let Some(processed_text) =
+            post_process_transcription(app, &settings, &final_text, &ctx).await
         {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;

@@ -2358,7 +2358,7 @@ dependencies = [
 
 [[package]]
 name = "handy"
-version = "1.1.5"
+version = "1.1.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2385,6 +2385,8 @@ dependencies = [
  "rusqlite",
  "rusqlite_migration",
  "rustfft",
+ "security-framework",
+ "security-framework-sys",
  "serde",
  "serde_json",
  "sha2",
@@ -2416,6 +2418,7 @@ dependencies = [
  "transcribe-rs",
  "vad-rs",
  "windows 0.61.3",
+ "windows-sys 0.61.2",
  "winreg 0.55.0",
 ]
 

@@ -312,6 +312,15 @@ pub enum OrtAcceleratorSetting {
 #[serde(transparent)]
 pub(crate) struct SecretMap(HashMap<String, String>);
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ApiKeyStorageStatus {
+    #[default]
+    Missing,
+    Secure,
+    LocalPlaintext,
+}
+
 impl fmt::Debug for SecretMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let redacted: HashMap<&String, &str> = self
@@ -424,8 +433,16 @@ pub struct AppSettings {
     pub post_process_providers: Vec<PostProcessProvider>,
     #[serde(default = "default_post_process_api_keys")]
     pub post_process_api_keys: SecretMap,
+    #[serde(default = "default_post_process_api_key_status")]
+    pub post_process_api_key_status: HashMap<String, ApiKeyStorageStatus>,
     #[serde(default = "default_post_process_models")]
     pub post_process_models: HashMap<String, String>,
+    #[serde(default = "default_post_process_monthly_limit")]
+    pub post_process_monthly_limit: u32,
+    #[serde(default)]
+    pub post_process_monthly_usage: u32,
+    #[serde(default = "current_usage_month")]
+    pub post_process_usage_month: String,
     #[serde(default = "default_post_process_prompts")]
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
@@ -723,6 +740,22 @@ fn default_post_process_api_keys() -> SecretMap {
     SecretMap(map)
 }
 
+fn default_post_process_api_key_status() -> HashMap<String, ApiKeyStorageStatus> {
+    let mut map = HashMap::new();
+    for provider in default_post_process_providers() {
+        map.insert(provider.id, ApiKeyStorageStatus::Missing);
+    }
+    map
+}
+
+fn default_post_process_monthly_limit() -> u32 {
+    500
+}
+
+fn current_usage_month() -> String {
+    chrono::Utc::now().format("%Y-%m").to_string()
+}
+
 pub(crate) fn default_model_for_provider(provider_id: &str) -> String {
     match provider_id {
         APPLE_INTELLIGENCE_PROVIDER_ID => APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string(),
@@ -889,6 +922,16 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
             changed = true;
         }
 
+        if !settings
+            .post_process_api_key_status
+            .contains_key(&provider.id)
+        {
+            settings
+                .post_process_api_key_status
+                .insert(provider.id.clone(), ApiKeyStorageStatus::Missing);
+            changed = true;
+        }
+
         let default_model = default_model_for_provider(&provider.id);
         match settings.post_process_models.get_mut(&provider.id) {
             Some(existing) => {
@@ -999,7 +1042,11 @@ pub fn get_default_settings() -> AppSettings {
         post_process_provider_id: default_post_process_provider_id(),
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),
+        post_process_api_key_status: default_post_process_api_key_status(),
         post_process_models: default_post_process_models(),
+        post_process_monthly_limit: default_post_process_monthly_limit(),
+        post_process_monthly_usage: 0,
+        post_process_usage_month: current_usage_month(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: Some("fuwa_camuflaje_auto".to_string()),
         mute_while_recording: false,
@@ -1052,6 +1099,15 @@ impl AppSettings {
             .iter_mut()
             .find(|provider| provider.id == provider_id)
     }
+
+    /// The webview only needs to know whether a key exists and where it is
+    /// stored. Never send the actual credential back through Tauri IPC.
+    pub fn sanitized_for_frontend(mut self) -> Self {
+        for api_key in self.post_process_api_keys.values_mut() {
+            api_key.clear();
+        }
+        self
+    }
 }
 
 /// Startup entry point. Same load-or-create/salvage/migrate behavior as
@@ -1093,6 +1149,16 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
             }
         }
 
+        if ensure_post_process_defaults(&mut settings) {
+            updated = true;
+        }
+        if reset_post_process_usage_for_month(&mut settings, &current_usage_month()) {
+            updated = true;
+        }
+        if crate::secret_store::migrate_legacy_api_keys(&mut settings) {
+            updated = true;
+        }
+
         if updated {
             store.set("settings", serde_json::to_value(&settings).unwrap());
         }
@@ -1104,11 +1170,38 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         default_settings
     };
 
-    if ensure_post_process_defaults(&mut settings) {
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+    settings
+}
+
+fn reset_post_process_usage_for_month(settings: &mut AppSettings, month: &str) -> bool {
+    if settings.post_process_usage_month == month {
+        return false;
     }
 
-    settings
+    settings.post_process_usage_month = month.to_string();
+    settings.post_process_monthly_usage = 0;
+    true
+}
+
+/// Reserve one local post-processing use before an external provider request.
+/// Counting attempts (rather than only successful responses) is conservative
+/// and avoids accidental repeated retries bypassing the user's chosen cap.
+pub fn reserve_post_process_usage(app: &AppHandle) -> Result<(), String> {
+    let mut settings = get_settings(app);
+    reset_post_process_usage_for_month(&mut settings, &current_usage_month());
+
+    if settings.post_process_monthly_limit > 0
+        && settings.post_process_monthly_usage >= settings.post_process_monthly_limit
+    {
+        return Err(format!(
+            "Monthly post-processing limit reached ({})",
+            settings.post_process_monthly_limit
+        ));
+    }
+
+    settings.post_process_monthly_usage = settings.post_process_monthly_usage.saturating_add(1);
+    write_settings(app, settings);
+    Ok(())
 }
 
 /// Rebuilds settings from a store value that failed to deserialize as a whole.
@@ -1611,5 +1704,51 @@ mod tests {
         let out = format!("{:?}", map);
         assert!(!out.contains("secret"));
         assert!(out.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn frontend_settings_never_include_api_key_values() {
+        let mut settings = get_default_settings();
+        settings
+            .post_process_api_keys
+            .insert("anthropic".to_string(), "test-secret".to_string());
+        settings.post_process_api_key_status.insert(
+            "anthropic".to_string(),
+            ApiKeyStorageStatus::LocalPlaintext,
+        );
+
+        let public = settings.sanitized_for_frontend();
+        assert_eq!(
+            public
+                .post_process_api_keys
+                .get("anthropic")
+                .map(String::as_str),
+            Some("")
+        );
+        assert_eq!(
+            public.post_process_api_key_status.get("anthropic"),
+            Some(&ApiKeyStorageStatus::LocalPlaintext)
+        );
+    }
+
+    #[test]
+    fn monthly_usage_resets_when_calendar_month_changes() {
+        let mut settings = get_default_settings();
+        settings.post_process_usage_month = "2026-06".to_string();
+        settings.post_process_monthly_usage = 42;
+
+        assert!(reset_post_process_usage_for_month(
+            &mut settings,
+            "2026-07"
+        ));
+        assert_eq!(settings.post_process_usage_month, "2026-07");
+        assert_eq!(settings.post_process_monthly_usage, 0);
+    }
+
+    #[test]
+    fn default_monthly_limit_is_conservative_but_configurable() {
+        let settings = get_default_settings();
+        assert_eq!(settings.post_process_monthly_limit, 500);
+        assert_eq!(settings.post_process_monthly_usage, 0);
     }
 }

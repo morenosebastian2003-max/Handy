@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { RefreshCcw } from "lucide-react";
+import { ExternalLink, RefreshCcw } from "lucide-react";
 import { commands } from "@/bindings";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { Alert } from "../../ui/Alert";
 import {
@@ -21,6 +22,132 @@ import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ShortcutInput } from "../ShortcutInput";
 import { useSettings } from "../../../hooks/useSettings";
+
+const PROVIDER_LIMIT_URLS: Record<string, string> = {
+  anthropic: "https://console.anthropic.com/settings/limits",
+  openai: "https://platform.openai.com/settings/organization/limits",
+};
+
+const PostProcessUsageControl: React.FC<{ providerId: string }> = ({
+  providerId,
+}) => {
+  const { t } = useTranslation();
+  const {
+    getSetting,
+    isUpdating,
+    refreshSettings,
+    updatePostProcessMonthlyLimit,
+  } = useSettings();
+  const savedLimit = getSetting("post_process_monthly_limit") ?? 500;
+  const usage = getSetting("post_process_monthly_usage") ?? 0;
+  const usageMonth = getSetting("post_process_usage_month") ?? "";
+  const [draftLimit, setDraftLimit] = useState(String(savedLimit));
+  const [saveError, setSaveError] = useState(false);
+  const updating = isUpdating("post_process_monthly_limit");
+  const parsedLimit = Number(draftLimit);
+  const validLimit =
+    draftLimit.trim() !== "" &&
+    Number.isInteger(parsedLimit) &&
+    parsedLimit >= 0 &&
+    parsedLimit <= 1_000_000;
+  const isDirty = validLimit && parsedLimit !== savedLimit;
+  const providerLimitUrl = PROVIDER_LIMIT_URLS[providerId];
+
+  useEffect(() => {
+    setDraftLimit(String(savedLimit));
+  }, [savedLimit]);
+
+  useEffect(() => {
+    void refreshSettings();
+  }, [refreshSettings]);
+
+  const handleSave = async () => {
+    if (!validLimit || updating) return;
+    setSaveError(false);
+    try {
+      await updatePostProcessMonthlyLimit(parsedLimit);
+    } catch (error) {
+      console.error("Failed to update monthly post-process limit:", error);
+      setSaveError(true);
+    }
+  };
+
+  return (
+    <SettingContainer
+      title={t("settings.postProcessing.api.usage.title")}
+      description={t("settings.postProcessing.api.usage.description")}
+      descriptionMode="tooltip"
+      layout="stacked"
+      grouped={true}
+    >
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="number"
+            min={0}
+            max={1_000_000}
+            step={1}
+            value={draftLimit}
+            onChange={(event) => {
+              setDraftLimit(event.target.value);
+              setSaveError(false);
+            }}
+            aria-label={t("settings.postProcessing.api.usage.limitLabel")}
+            variant="compact"
+            disabled={updating}
+            className="w-36"
+          />
+          <Button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={!isDirty || updating}
+            variant="primary"
+            size="md"
+          >
+            {updating
+              ? t("settings.postProcessing.api.usage.saving")
+              : t("settings.postProcessing.api.usage.save")}
+          </Button>
+          {providerLimitUrl && (
+            <Button
+              type="button"
+              onClick={() => void openUrl(providerLimitUrl)}
+              variant="secondary"
+              size="md"
+              className="inline-flex items-center gap-1.5"
+            >
+              {t("settings.postProcessing.api.usage.providerLimit")}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+
+        <p className="text-xs text-mid-gray/80">
+          {savedLimit === 0
+            ? t("settings.postProcessing.api.usage.unlimited", {
+                used: usage,
+                month: usageMonth,
+              })
+            : t("settings.postProcessing.api.usage.progress", {
+                used: usage,
+                limit: savedLimit,
+                month: usageMonth,
+              })}
+        </p>
+        <Alert variant="info" className="py-2">
+          {t("settings.postProcessing.api.usage.localNotice")}
+        </Alert>
+        {(!validLimit || saveError) && (
+          <Alert variant="error" className="py-2">
+            {saveError
+              ? t("settings.postProcessing.api.usage.error")
+              : t("settings.postProcessing.api.usage.invalid")}
+          </Alert>
+        )}
+      </div>
+    </SettingContainer>
+  );
+};
 
 const PostProcessingSettingsApiComponent: React.FC = () => {
   const { t } = useTranslation();
@@ -83,8 +210,10 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
           >
             <div className="flex items-center gap-2">
               <ApiKeyField
-                value={state.apiKey}
-                onBlur={state.handleApiKeyChange}
+                providerId={state.selectedProviderId}
+                status={state.apiKeyStatus}
+                onSave={state.handleApiKeySave}
+                onDelete={state.handleApiKeyDelete}
                 placeholder={t(
                   "settings.postProcessing.api.apiKey.placeholder",
                 )}
@@ -138,6 +267,10 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
             </ResetButton>
           </div>
         </SettingContainer>
+      )}
+
+      {!state.isAppleProvider && (
+        <PostProcessUsageControl providerId={state.selectedProviderId} />
       )}
     </>
   );

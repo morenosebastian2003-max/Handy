@@ -157,6 +157,17 @@ function App() {
     };
   }, [t]);
 
+  // Explain why the raw transcription was preserved when the local safety cap
+  // prevents an external post-processing request.
+  useEffect(() => {
+    const unlisten = listen("post-process-limit-reached", () => {
+      toast.warning(t("settings.postProcessing.api.usage.limitReached"));
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
   // Listen for model loading failures and show a toast
   useEffect(() => {
     const unlisten = listen<ModelStateEvent>("model-state-changed", (event) => {

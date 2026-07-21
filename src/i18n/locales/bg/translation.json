@@ -410,7 +410,29 @@
         "apiKey": {
           "title": "API ключ",
           "description": "API ключ за избрания доставчик.",
-          "placeholder": "sk-..."
+          "placeholder": "sk-...",
+          "configuredPlaceholder": "Enter a new key to replace the saved one",
+          "save": "Save key",
+          "saving": "Saving...",
+          "delete": "Delete key",
+          "error": "The key could not be saved or verified. Check the key and try again.",
+          "deleted": "The API key was deleted.",
+          "secure": "Key stored securely by your operating system.",
+          "localPlaintext": "This platform still stores the key locally without OS encryption. Do not share the app data folder."
+        },
+        "usage": {
+          "title": "Monthly usage control",
+          "description": "Local maximum number of post-processes per calendar month. Use 0 for no local limit.",
+          "limitLabel": "Monthly post-processing limit",
+          "save": "Save limit",
+          "saving": "Saving...",
+          "providerLimit": "Provider spending limit",
+          "progress": "{{used}} of {{limit}} post-processes used in {{month}}.",
+          "unlimited": "{{used}} post-processes used in {{month}}. No local limit is enabled.",
+          "localNotice": "This is a local safety limit, not a money cap. Configure the provider spending limit for billing protection.",
+          "error": "The monthly limit could not be saved.",
+          "invalid": "Enter a whole number between 0 and 1,000,000.",
+          "limitReached": "The monthly post-processing limit has been reached. Your raw transcription was preserved."
         },
         "model": {
           "title": "Модел",

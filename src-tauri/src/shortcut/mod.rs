@@ -1035,7 +1035,39 @@ pub fn change_post_process_api_key_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
-    settings.post_process_api_keys.insert(provider_id, api_key);
+    crate::secret_store::save_api_key(&mut settings, &provider_id, &api_key)?;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_post_process_api_key_setting(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    validate_provider_exists(&settings, &provider_id)?;
+    crate::secret_store::delete_api_key(&mut settings, &provider_id)?;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_post_process_monthly_limit_setting(
+    app: AppHandle,
+    limit: u32,
+) -> Result<(), String> {
+    const MAX_MONTHLY_LIMIT: u32 = 1_000_000;
+    if limit > MAX_MONTHLY_LIMIT {
+        return Err(format!(
+            "Monthly post-processing limit cannot exceed {MAX_MONTHLY_LIMIT}"
+        ));
+    }
+
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_monthly_limit = limit;
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -1167,12 +1199,9 @@ pub async fn fetch_post_process_models(
         }
     }
 
-    // Get API key
-    let api_key = settings
-        .post_process_api_keys
-        .get(&provider_id)
-        .cloned()
-        .unwrap_or_default();
+    // The key stays in the OS credential vault and is only loaded in Rust for
+    // the duration of this provider request.
+    let api_key = crate::secret_store::load_api_key(&settings, &provider_id)?;
 
     // Skip fetching if no API key for providers that typically need one
     if api_key.trim().is_empty() && provider.id != "custom" {
