@@ -49,17 +49,11 @@ pub(crate) fn save_api_key(
     save_api_key_with_backend(settings, provider_id, api_key, &SystemCredentialBackend)
 }
 
-pub(crate) fn load_api_key(
-    settings: &AppSettings,
-    provider_id: &str,
-) -> Result<String, String> {
+pub(crate) fn load_api_key(settings: &AppSettings, provider_id: &str) -> Result<String, String> {
     load_api_key_with_backend(settings, provider_id, &SystemCredentialBackend)
 }
 
-pub(crate) fn delete_api_key(
-    settings: &mut AppSettings,
-    provider_id: &str,
-) -> Result<(), String> {
+pub(crate) fn delete_api_key(settings: &mut AppSettings, provider_id: &str) -> Result<(), String> {
     delete_api_key_with_backend(settings, provider_id, &SystemCredentialBackend)
 }
 
@@ -77,11 +71,7 @@ fn migrate_legacy_api_keys_with_backend(
     let mut changed = false;
     for (provider_id, api_key) in legacy_keys {
         if !backend.is_secure() {
-            changed |= set_status(
-                settings,
-                &provider_id,
-                ApiKeyStorageStatus::LocalPlaintext,
-            );
+            changed |= set_status(settings, &provider_id, ApiKeyStorageStatus::LocalPlaintext);
             continue;
         }
 
@@ -101,22 +91,14 @@ fn migrate_legacy_api_keys_with_backend(
                 );
             }
             Ok(_) => {
-                changed |= set_status(
-                    settings,
-                    &provider_id,
-                    ApiKeyStorageStatus::LocalPlaintext,
-                );
+                changed |= set_status(settings, &provider_id, ApiKeyStorageStatus::LocalPlaintext);
                 warn!(
                     "Credential verification failed while migrating provider '{}'; preserving legacy value",
                     provider_id
                 );
             }
             Err(error) => {
-                changed |= set_status(
-                    settings,
-                    &provider_id,
-                    ApiKeyStorageStatus::LocalPlaintext,
-                );
+                changed |= set_status(settings, &provider_id, ApiKeyStorageStatus::LocalPlaintext);
                 warn!(
                     "Could not migrate API key for provider '{}' to OS credential storage: {}. Preserving legacy value.",
                     provider_id, error
@@ -155,11 +137,7 @@ fn save_api_key_with_backend(
         settings
             .post_process_api_keys
             .insert(provider_id.to_string(), api_key.to_string());
-        set_status(
-            settings,
-            provider_id,
-            ApiKeyStorageStatus::LocalPlaintext,
-        );
+        set_status(settings, provider_id, ApiKeyStorageStatus::LocalPlaintext);
     }
 
     Ok(())
@@ -209,11 +187,7 @@ fn delete_api_key_with_backend(
     Ok(())
 }
 
-fn set_status(
-    settings: &mut AppSettings,
-    provider_id: &str,
-    status: ApiKeyStorageStatus,
-) -> bool {
+fn set_status(settings: &mut AppSettings, provider_id: &str, status: ApiKeyStorageStatus) -> bool {
     settings
         .post_process_api_key_status
         .insert(provider_id.to_string(), status)
@@ -228,8 +202,8 @@ mod platform {
     use std::slice;
     use windows_sys::Win32::Foundation::{GetLastError, FILETIME};
     use windows_sys::Win32::Security::Credentials::{
-        CredDeleteW, CredFree, CredReadW, CredWriteW, CREDENTIALW,
-        CRED_PERSIST_LOCAL_MACHINE, CRED_TYPE_GENERIC,
+        CredDeleteW, CredFree, CredReadW, CredWriteW, CREDENTIALW, CRED_PERSIST_LOCAL_MACHINE,
+        CRED_TYPE_GENERIC,
     };
 
     pub(super) const IS_SECURE: bool = true;
@@ -292,14 +266,8 @@ mod platform {
     pub(super) fn load(provider_id: &str) -> Result<String, String> {
         let target = target_name(provider_id);
         let mut raw_credential: *mut CREDENTIALW = null_mut();
-        let result = unsafe {
-            CredReadW(
-                target.as_ptr(),
-                CRED_TYPE_GENERIC,
-                0,
-                &mut raw_credential,
-            )
-        };
+        let result =
+            unsafe { CredReadW(target.as_ptr(), CRED_TYPE_GENERIC, 0, &mut raw_credential) };
         if result == 0 {
             return Err(last_error("read the API key"));
         }
@@ -471,7 +439,10 @@ mod tests {
             &backend
         ));
         assert_eq!(
-            settings.post_process_api_keys.get("anthropic").map(String::as_str),
+            settings
+                .post_process_api_keys
+                .get("anthropic")
+                .map(String::as_str),
             Some("test-secret")
         );
         assert_eq!(

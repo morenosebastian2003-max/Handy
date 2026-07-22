@@ -1,6 +1,6 @@
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
-use regex::Regex;
+use regex::{Captures, Regex};
 use strsim::levenshtein;
 
 /// Builds an n-gram string by cleaning and concatenating words
@@ -151,6 +151,27 @@ pub fn apply_custom_words(text: &str, custom_words: &[String], threshold: f64) -
     while i < words.len() {
         let mut matched = false;
 
+        // Identifiers are common in dictation (FUWA-9K2B, api.fuwa.app). The
+        // whole token is intentionally too different from a short glossary
+        // entry to fuzzy-match, so correct only its alphabetic segments while
+        // preserving separators and the rest of the identifier verbatim.
+        if words[i]
+            .chars()
+            .any(|c| matches!(c, '-' | '_' | '.' | '@' | '/' | '\\'))
+        {
+            let corrected = correct_identifier_segments(
+                words[i],
+                custom_words,
+                &custom_word_match_keys,
+                threshold,
+            );
+            if corrected != words[i] {
+                result.push(corrected);
+                i += 1;
+                continue;
+            }
+        }
+
         // Try n-grams from longest (3) to shortest (1) - greedy matching
         for n in (1..=3).rev() {
             if i + n > words.len() {
@@ -184,6 +205,49 @@ pub fn apply_custom_words(text: &str, custom_words: &[String], threshold: f64) -
     }
 
     result.join(" ")
+}
+
+fn correct_identifier_segments(
+    token: &str,
+    custom_words: &[String],
+    custom_word_match_keys: &[CustomWordMatchKey],
+    threshold: f64,
+) -> String {
+    let mut corrected = String::with_capacity(token.len());
+    let mut segment = String::new();
+
+    let flush_segment = |segment: &mut String, corrected: &mut String| {
+        if segment.chars().any(|c| c.is_alphabetic()) {
+            let key = build_match_key(segment);
+            if let Some((replacement, _)) = find_best_match(
+                &key,
+                custom_words,
+                custom_word_match_keys,
+                // Identifiers provide stronger context than prose and ASR often
+                // changes one consonant in a brand (fuga -> FUWA). Permit one
+                // edit in a four-letter segment while still rejecting distant
+                // matches; this applies only to words the user configured.
+                threshold.max(0.30),
+            ) {
+                corrected.push_str(&preserve_case_pattern(segment, replacement));
+                segment.clear();
+                return;
+            }
+        }
+        corrected.push_str(segment);
+        segment.clear();
+    };
+
+    for ch in token.chars() {
+        if ch.is_alphanumeric() {
+            segment.push(ch);
+        } else {
+            flush_segment(&mut segment, &mut corrected);
+            corrected.push(ch);
+        }
+    }
+    flush_segment(&mut segment, &mut corrected);
+    corrected
 }
 
 /// Preserves the case pattern of the original word when applying a replacement
@@ -262,6 +326,54 @@ fn get_filler_words_for_language(lang: &str) -> &'static [&'static str] {
 
 static MULTI_SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s{2,}").unwrap());
 
+// Strong Spanish time contexts. We intentionally require either "a la(s)"
+// or a day-period suffix so ordinary quantities such as "9 y 18 personas"
+// are never rewritten as a time.
+static ES_TIME_WITH_DAY_PERIOD: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)\b(?P<prefix>a\s+la(?:s)?\s+)?(?P<hour>(?:[01]?\d|2[0-3]))\s+y\s+(?P<minute>[0-5]?\d)\s*,?\s+(?P<suffix>de\s+la\s+(?:mañana|tarde|noche)|a\.?\s*m\.?|p\.?\s*m\.?)\b",
+    )
+    .unwrap()
+});
+
+static ES_TIME_AFTER_AT: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)\b(?P<prefix>a\s+la(?:s)?\s+)(?P<hour>(?:[01]?\d|2[0-3]))\s+y\s+(?P<minute>[0-5]?\d)\b",
+    )
+    .unwrap()
+});
+
+fn format_spoken_time(captures: &Captures<'_>) -> String {
+    let prefix = captures.name("prefix").map_or("", |m| m.as_str());
+    let hour = captures.name("hour").map_or("", |m| m.as_str());
+    let minute = captures
+        .name("minute")
+        .and_then(|m| m.as_str().parse::<u8>().ok())
+        .unwrap_or(0);
+    let suffix = captures
+        .name("suffix")
+        .map_or(String::new(), |m| format!(" {}", m.as_str()));
+    format!("{prefix}{hour}:{minute:02}{suffix}")
+}
+
+/// Normalize unambiguous Spanish spoken times locally, without an API.
+///
+/// The language and context gates deliberately favor false negatives over
+/// turning unrelated pairs of numbers into a clock time.
+pub fn normalize_spoken_times(text: &str, lang: &str) -> String {
+    let base_lang = lang.split(&['-', '_'][..]).next().unwrap_or(lang);
+    if base_lang != "es" && base_lang != "auto" {
+        return text.to_string();
+    }
+
+    let with_day_period = ES_TIME_WITH_DAY_PERIOD
+        .replace_all(text, format_spoken_time)
+        .into_owned();
+    ES_TIME_AFTER_AT
+        .replace_all(&with_day_period, format_spoken_time)
+        .into_owned()
+}
+
 /// Filters transcription output conservatively by removing configured filler words.
 ///
 /// This function cleans up raw transcription text by:
@@ -329,6 +441,60 @@ mod tests {
         let custom_words = vec!["hello".to_string(), "world".to_string()];
         let result = apply_custom_words(text, &custom_words, 0.5);
         assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn test_apply_custom_words_inside_identifiers() {
+        let custom_words = vec!["FUWA".to_string()];
+
+        assert_eq!(
+            apply_custom_words("fuga-9k2b", &custom_words, 0.18),
+            "FUWA-9k2b"
+        );
+        assert_eq!(
+            apply_custom_words("soporte-fuga.app", &custom_words, 0.18),
+            "soporte-FUWA.app"
+        );
+    }
+
+    #[test]
+    fn test_normalize_contextual_spanish_times() {
+        assert_eq!(
+            normalize_spoken_times("Nos vemos a las 9 y 18 de la mañana.", "es"),
+            "Nos vemos a las 9:18 de la mañana."
+        );
+        assert_eq!(
+            normalize_spoken_times("La llamada es a la 1 y 5.", "es-CO"),
+            "La llamada es a la 1:05."
+        );
+        assert_eq!(
+            normalize_spoken_times("Llegaré 9 y 18 de la noche.", "es"),
+            "Llegaré 9:18 de la noche."
+        );
+        assert_eq!(
+            normalize_spoken_times("Será a las 9 y 18, de la mañana.", "es"),
+            "Será a las 9:18 de la mañana."
+        );
+    }
+
+    #[test]
+    fn test_time_normalizer_ignores_ambiguous_or_invalid_numbers() {
+        assert_eq!(
+            normalize_spoken_times("Hay 9 y 18 personas en dos grupos.", "es"),
+            "Hay 9 y 18 personas en dos grupos."
+        );
+        assert_eq!(
+            normalize_spoken_times("La cita es a las 25 y 80.", "es"),
+            "La cita es a las 25 y 80."
+        );
+        assert_eq!(
+            normalize_spoken_times("Meet me at 9 and 18.", "en"),
+            "Meet me at 9 and 18."
+        );
+        assert_eq!(
+            normalize_spoken_times("Nos vemos a las 9 y 18.", "auto"),
+            "Nos vemos a las 9:18."
+        );
     }
 
     #[test]

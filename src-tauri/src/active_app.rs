@@ -82,40 +82,76 @@ fn categorize(exe: &str, title: &str) -> String {
     // Chat / mensajería
     if has(
         exe,
-        &["slack", "discord", "whatsapp", "telegram", "teams", "messenger", "signal"],
-    ) || has(title, &["whatsapp", "slack", "discord", "messenger", "telegram"])
-    {
+        &[
+            "slack",
+            "discord",
+            "whatsapp",
+            "telegram",
+            "teams",
+            "messenger",
+            "signal",
+        ],
+    ) || has(
+        title,
+        &["whatsapp", "slack", "discord", "messenger", "telegram"],
+    ) {
         return "chat".to_string();
     }
     // Editores de código / terminales
     if has(
         exe,
         &[
-            "code", "cursor", "devenv", "idea64", "pycharm64", "webstorm64", "goland64",
-            "clion64", "rider64", "sublime_text", "windowsterminal", "powershell", "pwsh",
-            "cmd", "alacritty", "wezterm",
+            "code",
+            "cursor",
+            "devenv",
+            "idea64",
+            "pycharm64",
+            "webstorm64",
+            "goland64",
+            "clion64",
+            "rider64",
+            "sublime_text",
+            "windowsterminal",
+            "powershell",
+            "pwsh",
+            "cmd",
+            "alacritty",
+            "wezterm",
         ],
     ) {
         return "code".to_string();
     }
     // Correo (incluye Outlook/Gmail en navegador, por título)
-    if has(exe, &["outlook", "thunderbird", "mailspring", "spark", "airmail"])
-        || has(
-            title,
-            &[
-                "gmail", "outlook", "proton mail", "bandeja de entrada", "inbox",
-                "correo", "redactar", "compose", "mensaje nuevo", "new message",
-            ],
-        )
-    {
+    if has(
+        exe,
+        &["outlook", "thunderbird", "mailspring", "spark", "airmail"],
+    ) || has(
+        title,
+        &[
+            "gmail",
+            "outlook",
+            "proton mail",
+            "bandeja de entrada",
+            "inbox",
+            "correo",
+            "redactar",
+            "compose",
+            "mensaje nuevo",
+            "new message",
+        ],
+    ) {
         return "email".to_string();
     }
     // Notas / documentos
     if has(
         exe,
-        &["notion", "obsidian", "winword", "onenote", "notepad", "typora", "logseq"],
-    ) || has(title, &["google docs", "documentos de google", "notion", "obsidian"])
-    {
+        &[
+            "notion", "obsidian", "winword", "onenote", "notepad", "typora", "logseq",
+        ],
+    ) || has(
+        title,
+        &["google docs", "documentos de google", "notion", "obsidian"],
+    ) {
         return "notes".to_string();
     }
 

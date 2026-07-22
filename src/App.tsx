@@ -23,6 +23,7 @@ import { commands } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 
 type OnboardingStep = "accessibility" | "model" | "done";
+type PostProcessResultEvent = { status: "applied" | "preserved" };
 
 const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
@@ -40,7 +41,7 @@ function App() {
   const [isReturningUser, setIsReturningUser] = useState(false);
   const [currentSection, setCurrentSection] =
     useState<SidebarSection>("general");
-  const { settings, updateSetting } = useSettings();
+  const { settings, updateSetting, refreshSettings } = useSettings();
   const direction = getLanguageDirection(i18n.language);
   const refreshAudioDevices = useSettingsStore(
     (state) => state.refreshAudioDevices,
@@ -157,7 +158,7 @@ function App() {
     };
   }, [t]);
 
-  // Explain why the raw transcription was preserved when the local safety cap
+  // Explain why the local transcription was preserved when the safety cap
   // prevents an external post-processing request.
   useEffect(() => {
     const unlisten = listen("post-process-limit-reached", () => {
@@ -167,6 +168,25 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, [t]);
+
+  // Make the safety fallback visible: users should never have to guess whether
+  // they received the LLM polish or FUWA's protected local transcription.
+  useEffect(() => {
+    const unlisten = listen<PostProcessResultEvent>(
+      "post-process-result",
+      (event) => {
+        void refreshSettings();
+        if (event.payload.status === "applied") {
+          toast.success(t("settings.postProcessing.api.outcomes.applied"));
+        } else {
+          toast.warning(t("settings.postProcessing.api.outcomes.preserved"));
+        }
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [refreshSettings, t]);
 
   // Listen for model loading failures and show a toast
   useEffect(() => {

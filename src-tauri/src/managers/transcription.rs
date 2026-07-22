@@ -1,4 +1,6 @@
-use crate::audio_toolkit::{apply_custom_words, filter_transcription_output};
+use crate::audio_toolkit::{
+    apply_custom_words, filter_transcription_output, normalize_spoken_times,
+};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{EngineType, ModelManager};
 use crate::settings::{
@@ -1394,11 +1396,9 @@ impl TranscriptionManager {
             }
         };
 
-        // Apply fuzzy word correction if custom words are configured — UNLESS the
-        // words were already handed to the model as an initial prompt (whisper
-        // family). We don't pass a prompt to non-whisper models (it requires the
-        // whisper-kind run extension), so they still get fuzzy correction here,
-        // same as the ONNX engines.
+        // Apply deterministic local cleanup after decoding. Whisper also receives
+        // custom words as an initial prompt, but that is only a decoding hint; the
+        // local glossary below remains the final authority for configured terms.
         let filtered_result = post_process_transcription_text(
             result,
             &settings,
@@ -1615,9 +1615,12 @@ fn post_process_transcription_text(
     raw: String,
     settings: &AppSettings,
     effective_language: &str,
-    custom_words_already_prompted: bool,
+    _custom_words_already_prompted: bool,
 ) -> String {
-    let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
+    // An initial prompt is a hint, not a guarantee. Always run the user's own
+    // glossary locally as a deterministic second line of defense; exact
+    // matches remain unchanged and fuzzy matching still obeys their threshold.
+    let corrected = if !settings.custom_words.is_empty() {
         apply_custom_words(
             &raw,
             &settings.custom_words,
@@ -1627,11 +1630,12 @@ fn post_process_transcription_text(
         raw
     };
 
-    filter_transcription_output(
+    let filtered = filter_transcription_output(
         &corrected,
         effective_language,
         &settings.custom_filler_words,
-    )
+    );
+    normalize_spoken_times(&filtered, effective_language)
 }
 
 /// Decide a transcribe-cpp run's task + translation target from settings.
@@ -1956,6 +1960,32 @@ mod tests {
         );
 
         assert_eq!(result, "ha sido un buen día");
+    }
+
+    #[test]
+    fn prompted_custom_words_still_receive_local_correction() {
+        let mut settings = AppSettings::default();
+        settings.custom_words = vec!["FUWA".to_string()];
+        settings.word_correction_threshold = 0.18;
+
+        let result = post_process_transcription_text(
+            concat!(
+                "El identificador es fuga-9k2b, el correo es soporte-fuga.app ",
+                "y la reunión es a las 9 y 18 de la mañana"
+            )
+            .to_string(),
+            &settings,
+            "es",
+            true,
+        );
+
+        assert_eq!(
+            result,
+            concat!(
+                "El identificador es FUWA-9k2b, el correo es soporte-FUWA.app ",
+                "y la reunión es a las 9:18 de la mañana"
+            )
+        );
     }
 }
 

@@ -1055,10 +1055,7 @@ pub fn delete_post_process_api_key_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_post_process_monthly_limit_setting(
-    app: AppHandle,
-    limit: u32,
-) -> Result<(), String> {
+pub fn change_post_process_monthly_limit_setting(app: AppHandle, limit: u32) -> Result<(), String> {
     const MAX_MONTHLY_LIMIT: u32 = 1_000_000;
     if limit > MAX_MONTHLY_LIMIT {
         return Err(format!(

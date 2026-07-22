@@ -441,6 +441,10 @@ pub struct AppSettings {
     pub post_process_monthly_limit: u32,
     #[serde(default)]
     pub post_process_monthly_usage: u32,
+    #[serde(default)]
+    pub post_process_monthly_accepted: u32,
+    #[serde(default)]
+    pub post_process_monthly_fallbacks: u32,
     #[serde(default = "current_usage_month")]
     pub post_process_usage_month: String,
     #[serde(default = "default_post_process_prompts")]
@@ -1046,6 +1050,8 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_monthly_limit: default_post_process_monthly_limit(),
         post_process_monthly_usage: 0,
+        post_process_monthly_accepted: 0,
+        post_process_monthly_fallbacks: 0,
         post_process_usage_month: current_usage_month(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: Some("fuwa_camuflaje_auto".to_string()),
@@ -1180,6 +1186,8 @@ fn reset_post_process_usage_for_month(settings: &mut AppSettings, month: &str) -
 
     settings.post_process_usage_month = month.to_string();
     settings.post_process_monthly_usage = 0;
+    settings.post_process_monthly_accepted = 0;
+    settings.post_process_monthly_fallbacks = 0;
     true
 }
 
@@ -1202,6 +1210,31 @@ pub fn reserve_post_process_usage(app: &AppHandle) -> Result<(), String> {
     settings.post_process_monthly_usage = settings.post_process_monthly_usage.saturating_add(1);
     write_settings(app, settings);
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+pub enum PostProcessUsageOutcome {
+    Accepted,
+    Fallback,
+}
+
+/// Record the final result of one dictated post-processing run. Attempts count
+/// provider requests (including a retry); outcomes count dictations, so one
+/// successful retry produces two attempts but one accepted result.
+pub fn record_post_process_outcome(app: &AppHandle, outcome: PostProcessUsageOutcome) {
+    let mut settings = get_settings(app);
+    reset_post_process_usage_for_month(&mut settings, &current_usage_month());
+    match outcome {
+        PostProcessUsageOutcome::Accepted => {
+            settings.post_process_monthly_accepted =
+                settings.post_process_monthly_accepted.saturating_add(1);
+        }
+        PostProcessUsageOutcome::Fallback => {
+            settings.post_process_monthly_fallbacks =
+                settings.post_process_monthly_fallbacks.saturating_add(1);
+        }
+    }
+    write_settings(app, settings);
 }
 
 /// Rebuilds settings from a store value that failed to deserialize as a whole.
@@ -1712,10 +1745,9 @@ mod tests {
         settings
             .post_process_api_keys
             .insert("anthropic".to_string(), "test-secret".to_string());
-        settings.post_process_api_key_status.insert(
-            "anthropic".to_string(),
-            ApiKeyStorageStatus::LocalPlaintext,
-        );
+        settings
+            .post_process_api_key_status
+            .insert("anthropic".to_string(), ApiKeyStorageStatus::LocalPlaintext);
 
         let public = settings.sanitized_for_frontend();
         assert_eq!(
@@ -1736,13 +1768,14 @@ mod tests {
         let mut settings = get_default_settings();
         settings.post_process_usage_month = "2026-06".to_string();
         settings.post_process_monthly_usage = 42;
+        settings.post_process_monthly_accepted = 30;
+        settings.post_process_monthly_fallbacks = 12;
 
-        assert!(reset_post_process_usage_for_month(
-            &mut settings,
-            "2026-07"
-        ));
+        assert!(reset_post_process_usage_for_month(&mut settings, "2026-07"));
         assert_eq!(settings.post_process_usage_month, "2026-07");
         assert_eq!(settings.post_process_monthly_usage, 0);
+        assert_eq!(settings.post_process_monthly_accepted, 0);
+        assert_eq!(settings.post_process_monthly_fallbacks, 0);
     }
 
     #[test]
@@ -1750,5 +1783,7 @@ mod tests {
         let settings = get_default_settings();
         assert_eq!(settings.post_process_monthly_limit, 500);
         assert_eq!(settings.post_process_monthly_usage, 0);
+        assert_eq!(settings.post_process_monthly_accepted, 0);
+        assert_eq!(settings.post_process_monthly_fallbacks, 0);
     }
 }

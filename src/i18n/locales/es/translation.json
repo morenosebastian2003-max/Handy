@@ -422,17 +422,22 @@
         },
         "usage": {
           "title": "Control de uso mensual",
-          "description": "Cantidad máxima local de postprocesos por mes calendario. Usa 0 para no establecer un límite local.",
-          "limitLabel": "Límite mensual de postprocesos",
+          "description": "Cantidad máxima local de solicitudes al proveedor por mes calendario. Usa 0 para no establecer un límite local.",
+          "limitLabel": "Límite mensual de solicitudes",
           "save": "Guardar límite",
           "saving": "Guardando...",
           "providerLimit": "Límite de gasto del proveedor",
-          "progress": "Has usado {{used}} de {{limit}} postprocesos en {{month}}.",
-          "unlimited": "Has usado {{used}} postprocesos en {{month}}. No hay límite local activo.",
-          "localNotice": "Este es un límite de seguridad local, no un límite de dinero. Configura también el límite de gasto del proveedor.",
+          "progress": "Has realizado {{used}} de {{limit}} solicitudes en {{month}}.",
+          "unlimited": "Has realizado {{used}} solicitudes en {{month}}. No hay límite local activo.",
+          "localNotice": "Este es un límite de seguridad local, no un límite de dinero. Un reintento cuenta como otra solicitud. Configura también el límite de gasto del proveedor.",
           "error": "No se pudo guardar el límite mensual.",
           "invalid": "Escribe un número entero entre 0 y 1.000.000.",
-          "limitReached": "Alcanzaste el límite mensual de postprocesos. FUWA conservó la transcripción original."
+          "limitReached": "Alcanzaste el límite mensual de solicitudes. FUWA conservó la transcripción local."
+        },
+        "outcomes": {
+          "breakdown": "Pulidos aplicados: {{accepted}} · Originales conservados: {{fallbacks}}.",
+          "applied": "Pulido aplicado correctamente.",
+          "preserved": "FUWA conservó el texto local porque el pulido no pudo aplicarse de forma segura."
         },
         "model": {
           "title": "Modelo",

@@ -434,6 +434,11 @@
           "invalid": "Enter a whole number between 0 and 1,000,000.",
           "limitReached": "The monthly post-processing limit has been reached. Your raw transcription was preserved."
         },
+        "outcomes": {
+          "breakdown": "Polishes applied: {{accepted}} · Originals preserved: {{fallbacks}}.",
+          "applied": "Polish applied successfully.",
+          "preserved": "FUWA kept the local text because the polish could not be applied safely."
+        },
         "model": {
           "title": "모델",
           "descriptionCustom": "사용자 정의 엔드포인트에서 예상하는 모델 식별자를 제공하세요.",

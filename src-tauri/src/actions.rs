@@ -7,7 +7,10 @@ use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::StreamWorkKind;
 use crate::managers::transcription::TranscriptionManager;
-use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
+use crate::settings::{
+    get_settings, AppSettings, OverlayStyle, PostProcessProvider, PostProcessUsageOutcome,
+    APPLE_INTELLIGENCE_PROVIDER_ID,
+};
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils::{
@@ -25,18 +28,81 @@ use tauri::Manager;
 use tauri::{AppHandle, Emitter};
 
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
-const MIN_POST_PROCESS_TOKEN_RETENTION: f32 = 0.70;
+const MIN_POST_PROCESS_TOKEN_RETENTION: f32 = 0.60;
 const POST_PROCESS_FIDELITY_RULES: &str = concat!(
-    "Fidelity safety rules: preserve every number, URL, email address, file name, ",
-    "code identifier, proper name and negation. Preserve intentional repetitions ",
-    "such as 'no, no, no'. If uncertain, keep the original words. Never return an ",
-    "empty response for a non-empty transcript."
+    "Fidelity safety rules: preserve every final number, URL, email address, file ",
+    "name, code identifier, proper name and negation. You may remove a false start ",
+    "or value explicitly superseded by words such as 'perdón', 'corrijo' or 'quise ",
+    "decir', but must preserve the corrected value. Preserve intentional repetitions ",
+    "such as 'no, no, no'. Remove fillers and duplicate restatements only when their ",
+    "meaning is already present. If uncertain, keep the original words. Never return ",
+    "an empty response for a non-empty transcript."
 );
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
     error_type: String,
     detail: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct PostProcessResultEvent {
+    status: &'static str,
+}
+
+fn emit_post_process_result(app: &AppHandle, status: &'static str) {
+    let _ = app.emit("post-process-result", PostProcessResultEvent { status });
+}
+
+/// One guard per dictated post-process run. Provider requests are counted when
+/// reserved; this guard records exactly one final accepted/fallback outcome and
+/// makes early-return error paths impossible to forget.
+struct PostProcessOutcomeGuard {
+    app: AppHandle,
+    requests: u8,
+    finished: bool,
+}
+
+impl PostProcessOutcomeGuard {
+    fn new(app: &AppHandle) -> Self {
+        Self {
+            app: app.clone(),
+            requests: 0,
+            finished: false,
+        }
+    }
+
+    fn request_started(&mut self) {
+        self.requests = self.requests.saturating_add(1);
+    }
+
+    fn can_retry(&self) -> bool {
+        self.requests < 2
+    }
+
+    fn accepted(&mut self) {
+        if self.finished {
+            return;
+        }
+        crate::settings::record_post_process_outcome(&self.app, PostProcessUsageOutcome::Accepted);
+        emit_post_process_result(&self.app, "applied");
+        self.finished = true;
+    }
+
+    fn fallback(&mut self) {
+        if self.finished || self.requests == 0 {
+            return;
+        }
+        crate::settings::record_post_process_outcome(&self.app, PostProcessUsageOutcome::Fallback);
+        emit_post_process_result(&self.app, "preserved");
+        self.finished = true;
+    }
+}
+
+impl Drop for PostProcessOutcomeGuard {
+    fn drop(&mut self) {
+        self.fallback();
+    }
 }
 
 /// Drop guard that notifies the [`TranscriptionCoordinator`] when the
@@ -176,6 +242,7 @@ fn is_protected_fidelity_token(
     source: &str,
     normalized: &str,
     position: usize,
+    previous_source: Option<&str>,
     custom_tokens: &HashSet<String>,
 ) -> bool {
     let core = source.trim_matches(|c: char| {
@@ -189,15 +256,47 @@ fn is_protected_fidelity_token(
     let has_lower = letters.iter().any(|c| c.is_lowercase());
     let starts_upper = letters.first().map(|c| c.is_uppercase()).unwrap_or(false);
     let has_internal_upper = letters.iter().skip(1).any(|c| c.is_uppercase());
-    let looks_like_name =
-        (has_upper && has_lower && has_internal_upper) || (position > 0 && starts_upper);
+    let starts_sentence = position == 0
+        || previous_source.is_some_and(|previous| {
+            previous
+                .trim_end_matches(|c: char| matches!(c, '"' | '\'' | ')' | ']' | '}'))
+                .chars()
+                .last()
+                .is_some_and(|c| matches!(c, '.' | '!' | '?'))
+        });
+    let common_sentence_start = matches!(
+        normalized,
+        "el" | "la"
+            | "los"
+            | "las"
+            | "un"
+            | "una"
+            | "este"
+            | "esta"
+            | "esto"
+            | "ese"
+            | "esa"
+            | "atencion"
+            | "manana"
+            | "antes"
+            | "despues"
+            | "voy"
+            | "vamos"
+            | "quiero"
+            | "necesito"
+            | "debes"
+            | "debe"
+    ) || is_cleanup_token(normalized);
+    let looks_like_name = (has_upper && has_lower && has_internal_upper)
+        || (starts_upper && letters.len() > 1 && (!starts_sentence || !common_sentence_start));
     let looks_like_identifier = core.contains("://")
         || core.contains('@')
         || core.contains('/')
         || core.contains('\\')
         || core.contains('_')
         || core.contains("::")
-        || core.contains('.');
+        || core.contains('.')
+        || core.contains('-');
 
     source.chars().any(|c| c.is_ascii_digit())
         || is_negation(normalized)
@@ -205,6 +304,194 @@ fn is_protected_fidelity_token(
         || looks_like_identifier
         || looks_like_name
         || (has_upper && !has_lower && letters.len() > 1)
+}
+
+fn is_correction_marker(token: &str) -> bool {
+    matches!(
+        token,
+        "perdon" | "corrijo" | "correccion" | "disculpa" | "rectifico"
+    )
+}
+
+fn is_cleanup_token(token: &str) -> bool {
+    matches!(
+        token,
+        "bueno"
+            | "eh"
+            | "ehm"
+            | "hmm"
+            | "mmm"
+            | "pues"
+            | "osea"
+            | "repito"
+            | "perdon"
+            | "corrijo"
+            | "correccion"
+            | "disculpa"
+            | "rectifico"
+            | "well"
+            | "uh"
+            | "um"
+    )
+}
+
+fn looks_capitalized(source: &str) -> bool {
+    let mut letters = source.chars().filter(|c| c.is_alphabetic());
+    letters.next().is_some_and(|c| c.is_uppercase()) && letters.next().is_some()
+}
+
+/// Find protected facts immediately before an explicit correction marker. Only
+/// the closest fact group is exempted: in "lote 5 costaba 100, perdón, 120" the
+/// obsolete 100 may disappear, while the unrelated lot number 5 stays protected.
+fn superseded_protected_positions(tokens: &[(&str, String)]) -> HashSet<usize> {
+    let mut superseded = HashSet::new();
+
+    for (marker_position, (_, marker)) in tokens.iter().enumerate() {
+        let is_multiword_marker = marker_position > 0
+            && ((marker == "decir" && tokens[marker_position - 1].1.as_str() == "quise")
+                || (marker == "dicho" && tokens[marker_position - 1].1.as_str() == "mejor"));
+        if !is_correction_marker(marker) && !is_multiword_marker {
+            continue;
+        }
+
+        let replacement_has_number = tokens
+            .iter()
+            .skip(marker_position + 1)
+            .take(10)
+            .any(|(source, _)| source.chars().any(|c| c.is_ascii_digit()));
+        if replacement_has_number {
+            let mut found_number = false;
+            for position in (marker_position.saturating_sub(10)..marker_position).rev() {
+                let (source, normalized) = &tokens[position];
+                if source.chars().any(|c| c.is_ascii_digit()) {
+                    superseded.insert(position);
+                    found_number = true;
+                    continue;
+                }
+
+                if found_number
+                    && matches!(
+                        normalized.as_str(),
+                        "y" | "a" | "la" | "las" | "de" | "del" | "el"
+                    )
+                {
+                    continue;
+                }
+
+                if found_number {
+                    break;
+                }
+            }
+        }
+
+        let replacement_has_identifier = tokens
+            .iter()
+            .skip(marker_position + 1)
+            .take(8)
+            .any(|(source, _)| looks_like_identifier(source));
+        if replacement_has_identifier {
+            for position in (marker_position.saturating_sub(8)..marker_position).rev() {
+                if looks_like_identifier(tokens[position].0) {
+                    superseded.insert(position);
+                    break;
+                }
+            }
+        }
+
+        let replacement_has_name = tokens
+            .iter()
+            .skip(marker_position + 1)
+            .take(5)
+            .any(|(source, normalized)| looks_capitalized(source) && !is_cleanup_token(normalized));
+        if replacement_has_name {
+            let mut found_name = false;
+            for position in (marker_position.saturating_sub(6)..marker_position).rev() {
+                let (source, normalized) = &tokens[position];
+                if looks_capitalized(source) && !is_cleanup_token(normalized) {
+                    superseded.insert(position);
+                    found_name = true;
+                    continue;
+                }
+                if found_name {
+                    break;
+                }
+            }
+        }
+
+        let replacement_is_affirmative = tokens
+            .get(marker_position + 1)
+            .is_some_and(|(_, token)| token == "si");
+        if replacement_is_affirmative {
+            if let Some(position) = (marker_position.saturating_sub(3)..marker_position)
+                .rev()
+                .find(|position| is_negation(&tokens[*position].1))
+            {
+                superseded.insert(position);
+            }
+        }
+    }
+
+    superseded
+}
+
+fn looks_like_identifier(source: &str) -> bool {
+    let core = source.trim_matches(|c: char| {
+        matches!(
+            c,
+            ',' | ';' | ':' | '!' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\''
+        )
+    });
+    core.contains("://")
+        || core.contains('@')
+        || core.contains('/')
+        || core.contains('\\')
+        || core.contains('_')
+        || core.contains("::")
+        || core.contains('.')
+        || core.contains('-')
+}
+
+/// A global count of "no" is not enough: "18.750, no 17.850" must keep the
+/// negation attached to 17.850. Track negated numeric/identifier facts by their
+/// canonical token so moving or deleting that specific negation is rejected.
+fn negated_facts(
+    tokens: &[(&str, String)],
+    excluded_positions: &HashSet<usize>,
+) -> HashSet<String> {
+    let mut facts = HashSet::new();
+
+    for (position, (source, normalized)) in tokens.iter().enumerate() {
+        if excluded_positions.contains(&position) {
+            continue;
+        }
+        if !source.chars().any(|c| c.is_ascii_digit()) && !looks_like_identifier(source) {
+            continue;
+        }
+
+        let mut negated = false;
+        for previous in (position.saturating_sub(6)..position).rev() {
+            if excluded_positions.contains(&previous) {
+                continue;
+            }
+            let (previous_source, previous_normalized) = &tokens[previous];
+            if previous_source
+                .chars()
+                .last()
+                .is_some_and(|c| matches!(c, '.' | '!' | '?'))
+            {
+                break;
+            }
+            if is_negation(previous_normalized) {
+                negated = true;
+                break;
+            }
+        }
+        if negated {
+            facts.insert(normalized.clone());
+        }
+    }
+
+    facts
 }
 
 /// Reject destructive or hallucinatory LLM rewrites. This deliberately favors
@@ -228,9 +515,13 @@ fn validate_post_processed_text(
         return Ok(candidate);
     }
 
-    let candidate_tokens: Vec<String> = candidate
+    let candidate_source_tokens: Vec<(&str, String)> = candidate
         .split_whitespace()
-        .filter_map(normalize_fidelity_token)
+        .filter_map(|token| normalize_fidelity_token(token).map(|normalized| (token, normalized)))
+        .collect();
+    let candidate_tokens: Vec<String> = candidate_source_tokens
+        .iter()
+        .map(|(_, normalized)| normalized.clone())
         .collect();
     if candidate_tokens.is_empty() {
         return Err("response has no lexical content");
@@ -254,18 +545,44 @@ fn validate_post_processed_text(
         *candidate_counts.entry(token.clone()).or_default() += 1;
     }
 
+    let superseded_positions = superseded_protected_positions(&original_tokens);
     let mut protected_counts: HashMap<String, usize> = HashMap::new();
     for (position, (source, normalized)) in original_tokens.iter().enumerate() {
-        let is_repeated = position
-            .checked_sub(1)
-            .and_then(|previous| original_tokens.get(previous))
-            .is_some_and(|(_, previous)| previous == normalized)
-            || original_tokens
-                .get(position + 1)
-                .is_some_and(|(_, next)| next == normalized);
-        if is_repeated || is_protected_fidelity_token(source, normalized, position, &custom_tokens)
-        {
-            *protected_counts.entry(normalized.clone()).or_default() += 1;
+        if superseded_positions.contains(&position) {
+            continue;
+        }
+
+        if is_protected_fidelity_token(
+            source,
+            normalized,
+            position,
+            position
+                .checked_sub(1)
+                .and_then(|previous| original_tokens.get(previous))
+                .map(|(source, _)| *source),
+            &custom_tokens,
+        ) {
+            // Duplicate restatements may be consolidated, so most protected
+            // facts need to appear at least once rather than the same number of
+            // times. Adjacent repeated negations are intentional emphasis and
+            // retain their full run length ("no, no, no").
+            let required = if is_negation(normalized) {
+                let mut start = position;
+                while start > 0 && original_tokens[start - 1].1.as_str() == normalized.as_str() {
+                    start -= 1;
+                }
+                let mut end = position + 1;
+                while end < original_tokens.len()
+                    && original_tokens[end].1.as_str() == normalized.as_str()
+                {
+                    end += 1;
+                }
+                end - start
+            } else {
+                1
+            };
+            let entry = protected_counts.entry(normalized.clone()).or_default();
+            *entry = (*entry).max(required);
         }
     }
     if protected_counts
@@ -275,9 +592,23 @@ fn validate_post_processed_text(
         return Err("response removed protected content or a repeated word");
     }
 
+    let original_negated_facts = negated_facts(&original_tokens, &superseded_positions);
+    let candidate_negated_facts = negated_facts(&candidate_source_tokens, &HashSet::new());
+    if !original_negated_facts.is_subset(&candidate_negated_facts) {
+        return Err("response changed the negation of a protected fact");
+    }
+
     let mut remaining_counts = candidate_counts;
     let mut retained = 0usize;
-    for (_, token) in &original_tokens {
+    let meaningful_original_tokens: Vec<&String> = original_tokens
+        .iter()
+        .enumerate()
+        .filter(|(position, (_, token))| {
+            !superseded_positions.contains(position) && !is_cleanup_token(token)
+        })
+        .map(|(_, (_, token))| token)
+        .collect();
+    for token in meaningful_original_tokens.iter().copied() {
         if let Some(count) = remaining_counts.get_mut(token) {
             if *count > 0 {
                 *count -= 1;
@@ -285,8 +616,8 @@ fn validate_post_processed_text(
             }
         }
     }
-    let required =
-        ((original_tokens.len() as f32) * MIN_POST_PROCESS_TOKEN_RETENTION).ceil() as usize;
+    let required = ((meaningful_original_tokens.len() as f32) * MIN_POST_PROCESS_TOKEN_RETENTION)
+        .ceil() as usize;
     if retained < required {
         return Err("response removed or replaced too many words");
     }
@@ -299,13 +630,108 @@ fn accept_post_processed_text(
     candidate: &str,
     custom_words: &[String],
     provider_id: &str,
-) -> Option<String> {
+) -> Result<String, &'static str> {
     match validate_post_processed_text(original, candidate, custom_words) {
-        Ok(candidate) => Some(candidate),
+        Ok(candidate) => Ok(candidate),
         Err(reason) => {
             warn!(
-                "Rejected post-processing response from provider '{}': {}. Preserving original transcription.",
+                "Rejected post-processing response from provider '{}': {}.",
                 provider_id, reason
+            );
+            Err(reason)
+        }
+    }
+}
+
+fn reserve_post_process_request(app: &AppHandle, outcome: &mut PostProcessOutcomeGuard) -> bool {
+    match crate::settings::reserve_post_process_usage(app) {
+        Ok(()) => {
+            outcome.request_started();
+            true
+        }
+        Err(error) => {
+            warn!("Post-processing request skipped: {}", error);
+            let _ = app.emit("post-process-limit-reached", ());
+            false
+        }
+    }
+}
+
+fn build_conservative_retry_prompt(transcription: &str) -> String {
+    format!(
+        concat!(
+            "The previous rewrite was rejected by FUWA's fidelity guard. Make a minimal ",
+            "correction only: punctuation, capitalization, spoken symbols, obvious filler ",
+            "words and values explicitly superseded by a correction marker. Preserve every ",
+            "final number, negation, proper name, identifier, URL, email and file name. ",
+            "Preserve intentional repeated negations such as 'no, no, no'. Return only the ",
+            "cleaned transcript, with no explanation.\n\n{}"
+        ),
+        build_transcript_user_message(transcription)
+    )
+}
+
+async fn retry_rejected_post_process(
+    app: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    api_key: &str,
+    model: &str,
+    transcription: &str,
+    reasoning_effort: Option<String>,
+    reasoning: Option<crate::llm_client::ReasoningConfig>,
+    outcome: &mut PostProcessOutcomeGuard,
+) -> Option<String> {
+    if !outcome.can_retry() {
+        warn!(
+            "Skipping conservative retry for provider '{}' because this dictation already used two requests",
+            provider.id
+        );
+        return None;
+    }
+    warn!(
+        "Retrying provider '{}' once with conservative fidelity instructions",
+        provider.id
+    );
+    if !reserve_post_process_request(app, outcome) {
+        return None;
+    }
+
+    match crate::llm_client::send_chat_completion(
+        provider,
+        api_key.to_string(),
+        model,
+        build_conservative_retry_prompt(transcription),
+        reasoning_effort,
+        reasoning,
+    )
+    .await
+    {
+        Ok(Some(content)) => match accept_post_processed_text(
+            transcription,
+            &content,
+            &settings.custom_words,
+            &provider.id,
+        ) {
+            Ok(content) => {
+                debug!(
+                    "Conservative post-processing retry succeeded for provider '{}'. Output length: {} chars",
+                    provider.id,
+                    content.len()
+                );
+                outcome.accepted();
+                Some(content)
+            }
+            Err(_) => None,
+        },
+        Ok(None) => {
+            error!("Conservative post-processing retry returned no content");
+            None
+        }
+        Err(error) => {
+            error!(
+                "Conservative post-processing retry failed for provider '{}': {}",
+                provider.id, error
             );
             None
         }
@@ -425,6 +851,7 @@ async fn post_process_transcription(
         Some(provider) => provider,
         None => {
             debug!("Post-processing enabled but no provider is selected");
+            emit_post_process_result(app, "preserved");
             return None;
         }
     };
@@ -448,6 +875,7 @@ async fn post_process_transcription(
             "Post-processing skipped because provider '{}' has no model configured",
             provider.id
         );
+        emit_post_process_result(app, "preserved");
         return None;
     }
 
@@ -455,6 +883,7 @@ async fn post_process_transcription(
         Some(id) => id.clone(),
         None => {
             debug!("Post-processing skipped because no prompt is selected");
+            emit_post_process_result(app, "preserved");
             return None;
         }
     };
@@ -490,6 +919,7 @@ async fn post_process_transcription(
                     "Post-processing skipped because no usable prompt was found (wanted '{}')",
                     selected_prompt_id
                 );
+                emit_post_process_result(app, "preserved");
                 return None;
             }
         }
@@ -497,6 +927,7 @@ async fn post_process_transcription(
 
     if prompt.trim().is_empty() {
         debug!("Post-processing skipped because the selected prompt is empty");
+        emit_post_process_result(app, "preserved");
         return None;
     }
 
@@ -519,6 +950,7 @@ async fn post_process_transcription(
                     "Could not load API key for provider '{}': {}. Preserving original transcription.",
                     provider.id, error
                 );
+                emit_post_process_result(app, "preserved");
                 return None;
             }
         };
@@ -528,20 +960,14 @@ async fn post_process_transcription(
                 "Post-processing skipped because provider '{}' has no API key",
                 provider.id
             );
-            return None;
-        }
-
-        if let Err(error) = crate::settings::reserve_post_process_usage(app) {
-            warn!(
-                "Post-processing skipped for provider '{}': {}",
-                provider.id, error
-            );
-            let _ = app.emit("post-process-limit-reached", ());
+            emit_post_process_result(app, "preserved");
             return None;
         }
 
         api_key
     };
+
+    let mut outcome = PostProcessOutcomeGuard::new(app);
 
     // Disable reasoning for providers where post-processing rarely benefits from it.
     // - custom: top-level reasoning_effort (works for local OpenAI-compat servers)
@@ -583,7 +1009,7 @@ async fn post_process_transcription(
                     token_limit,
                 ) {
                     Ok(result) => {
-                        if let Some(result) = accept_post_processed_text(
+                        if let Ok(result) = accept_post_processed_text(
                             transcription,
                             &result,
                             &settings.custom_words,
@@ -593,13 +1019,16 @@ async fn post_process_transcription(
                                 "Apple Intelligence post-processing succeeded. Output length: {} chars",
                                 result.len()
                             );
+                            emit_post_process_result(app, "applied");
                             Some(result)
                         } else {
+                            emit_post_process_result(app, "preserved");
                             None
                         }
                     }
                     Err(err) => {
                         error!("Apple Intelligence post-processing failed: {}", err);
+                        emit_post_process_result(app, "preserved");
                         None
                     }
                 };
@@ -625,6 +1054,10 @@ async fn post_process_transcription(
             "additionalProperties": false
         });
 
+        if !reserve_post_process_request(app, &mut outcome) {
+            return None;
+        }
+
         match crate::llm_client::send_chat_completion_with_schema(
             &provider,
             api_key.clone(),
@@ -644,7 +1077,7 @@ async fn post_process_transcription(
                     );
                     return None;
                 };
-                if let Some(result) = accept_post_processed_text(
+                if let Ok(result) = accept_post_processed_text(
                     transcription,
                     &candidate,
                     &settings.custom_words,
@@ -655,9 +1088,21 @@ async fn post_process_transcription(
                         provider.id,
                         result.len()
                     );
+                    outcome.accepted();
                     return Some(result);
                 } else {
-                    return None;
+                    return retry_rejected_post_process(
+                        app,
+                        settings,
+                        &provider,
+                        &api_key,
+                        &model,
+                        transcription,
+                        reasoning_effort.clone(),
+                        reasoning.clone(),
+                        &mut outcome,
+                    )
+                    .await;
                 }
             }
             Ok(None) => {
@@ -686,18 +1131,22 @@ async fn post_process_transcription(
     let processed_prompt = build_legacy_prompt(&prompt, transcription);
     debug!("Processed prompt length: {} chars", processed_prompt.len());
 
+    if !reserve_post_process_request(app, &mut outcome) {
+        return None;
+    }
+
     match crate::llm_client::send_chat_completion(
         &provider,
-        api_key,
+        api_key.clone(),
         &model,
         processed_prompt,
-        reasoning_effort,
-        reasoning,
+        reasoning_effort.clone(),
+        reasoning.clone(),
     )
     .await
     {
         Ok(Some(content)) => {
-            if let Some(content) = accept_post_processed_text(
+            if let Ok(content) = accept_post_processed_text(
                 transcription,
                 &content,
                 &settings.custom_words,
@@ -708,9 +1157,21 @@ async fn post_process_transcription(
                     provider.id,
                     content.len()
                 );
+                outcome.accepted();
                 Some(content)
             } else {
-                None
+                retry_rejected_post_process(
+                    app,
+                    settings,
+                    &provider,
+                    &api_key,
+                    &model,
+                    transcription,
+                    reasoning_effort,
+                    reasoning,
+                    &mut outcome,
+                )
+                .await
             }
         }
         Ok(None) => {
@@ -1437,6 +1898,7 @@ mod tests {
             ("Abre https://fuwa.app ahora", "Abre el sitio ahora"),
             ("Escribe a ayuda@fuwa.app hoy", "Escribe al soporte hoy"),
             ("Habla con Sebastian mañana", "Habla con él mañana"),
+            ("Sebastian llegará mañana", "Llegará mañana"),
             ("Edita config_file.rs ahora", "Edita el archivo ahora"),
             ("No publiques todavía", "Publica todavía"),
         ];
@@ -1462,13 +1924,82 @@ mod tests {
     }
 
     #[test]
-    fn repeated_emphasis_must_not_be_collapsed() {
+    fn duplicate_non_negation_emphasis_may_be_collapsed() {
         let original = "Sí sí sí quiero eso";
         let candidate = "Sí quiero eso";
 
         assert_eq!(
             validate_post_processed_text(original, candidate, &[]),
-            Err("response removed protected content or a repeated word")
+            Ok(candidate.to_string())
+        );
+    }
+
+    #[test]
+    fn explicitly_corrected_number_may_be_removed() {
+        let original = "La reunión será el martes 23. Perdón, el miércoles 24 de julio de 2026.";
+        let candidate = "La reunión será el miércoles 24 de julio de 2026.";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Ok(candidate.to_string())
+        );
+    }
+
+    #[test]
+    fn explicitly_corrected_name_may_be_replaced() {
+        let original = "La responsable es Valentina, perdón, Martina.";
+        let candidate = "La responsable es Martina.";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Ok(candidate.to_string())
+        );
+    }
+
+    #[test]
+    fn explicitly_corrected_negation_may_be_removed() {
+        let original = "No, perdón, sí autorizo el envío.";
+        let candidate = "Sí autorizo el envío.";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Ok(candidate.to_string())
+        );
+    }
+
+    #[test]
+    fn negation_must_stay_attached_to_its_number() {
+        let original = "El total es $18,750, no $17,850.";
+        let candidate = "No olvides: el total es $18,750 y $17,850.";
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &[]),
+            Err("response changed the negation of a protected fact")
+        );
+    }
+
+    #[test]
+    fn master_regression_accepts_safe_cleanup() {
+        let original = concat!(
+            "Bueno, la reunión será el martes 23. Perdón, el miércoles 24 de julio de 2026 ",
+            "a las 9:15 de la mañana. Mañana no voy a enviar tres facturas. Voy a enviar ",
+            "exactamente dos. Repito, no tres, dos. El total autorizado es $18,750, no ",
+            "$17,850. La responsable es Valentina O'Connor. El identificador exacto es ",
+            "FUWA-9k2b. El correo es soporte-FUWA.app y el archivo es reporte-final.pdf. ",
+            "No, no, no, publiques la clave API. La palabra final obligatoria es colibrí."
+        );
+        let candidate = concat!(
+            "La reunión será el miércoles 24 de julio de 2026 a las 9:15 de la mañana. ",
+            "Mañana enviaré exactamente dos facturas, no tres. El total autorizado es ",
+            "$18,750, no $17,850. La responsable es Valentina O'Connor. El identificador ",
+            "exacto es FUWA-9K2B. El correo es soporte@FUWA.app y el archivo es ",
+            "reporte-final.pdf. No, no, no publiques la clave API. La palabra final ",
+            "obligatoria es colibrí."
+        );
+
+        assert_eq!(
+            validate_post_processed_text(original, candidate, &["FUWA".to_string()]),
+            Ok(candidate.to_string())
         );
     }
 

@@ -40,6 +40,8 @@ const PostProcessUsageControl: React.FC<{ providerId: string }> = ({
   } = useSettings();
   const savedLimit = getSetting("post_process_monthly_limit") ?? 500;
   const usage = getSetting("post_process_monthly_usage") ?? 0;
+  const accepted = getSetting("post_process_monthly_accepted") ?? 0;
+  const fallbacks = getSetting("post_process_monthly_fallbacks") ?? 0;
   const usageMonth = getSetting("post_process_usage_month") ?? "";
   const [draftLimit, setDraftLimit] = useState(String(savedLimit));
   const [saveError, setSaveError] = useState(false);
@@ -133,6 +135,12 @@ const PostProcessUsageControl: React.FC<{ providerId: string }> = ({
                 limit: savedLimit,
                 month: usageMonth,
               })}
+        </p>
+        <p className="text-xs text-mid-gray/80">
+          {t("settings.postProcessing.api.outcomes.breakdown", {
+            accepted,
+            fallbacks,
+          })}
         </p>
         <Alert variant="info" className="py-2">
           {t("settings.postProcessing.api.usage.localNotice")}
