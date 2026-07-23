@@ -37,7 +37,9 @@ jobs:
       platform: ${{ matrix.platform }}
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
-      sign-binaries: true
+      # Fuwa has no Apple Developer certificate; macOS uses the ad-hoc
+      # signing identity configured in tauri.conf.json instead.
+      sign-binaries: ${{ !contains(matrix.platform, 'macos') }}
       asset-prefix: "handy-test"
       upload-artifacts: true
       is-debug-build: ${{ contains(matrix.args, '--debug') }}
