@@ -435,12 +435,14 @@ fn superseded_protected_positions(tokens: &[(&str, String)]) -> HashSet<usize> {
 }
 
 fn looks_like_identifier(source: &str) -> bool {
-    let core = source.trim_matches(|c: char| {
-        matches!(
-            c,
-            ',' | ';' | ':' | '!' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\''
-        )
-    });
+    let core = source
+        .trim_matches(|c: char| {
+            matches!(
+                c,
+                ',' | ';' | ':' | '!' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '"' | '\''
+            )
+        })
+        .trim_end_matches('.');
     core.contains("://")
         || core.contains('@')
         || core.contains('/')
@@ -1791,8 +1793,8 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 mod tests {
     use super::{
         build_legacy_prompt, build_system_prompt, build_transcript_user_message,
-        complete_unless_cancelled, is_blank_transcription, negated_facts, normalize_fidelity_token,
-        should_retry_without_schema, should_use_streaming_overlay,
+        complete_unless_cancelled, is_blank_transcription, looks_like_identifier, negated_facts,
+        normalize_fidelity_token, should_retry_without_schema, should_use_streaming_overlay,
         structured_transcription_candidate, validate_post_processed_text,
     };
     use crate::settings::OverlayStyle;
@@ -1991,6 +1993,13 @@ mod tests {
 
         assert!(facts.contains("3"));
         assert!(!facts.contains("2"));
+    }
+
+    #[test]
+    fn sentence_period_does_not_make_plain_word_an_identifier() {
+        assert!(!looks_like_identifier("facturas."));
+        assert!(looks_like_identifier("reporte-final.pdf."));
+        assert!(looks_like_identifier(".env"));
     }
 
     #[test]
