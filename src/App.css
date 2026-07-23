@@ -278,16 +278,12 @@
     var(--glass-1)
   );
   box-shadow:
-    var(--glass-cast-md),
-    var(--glass-rim-top),
-    var(--glass-edge-bottom);
+    var(--glass-cast-md), var(--glass-rim-top), var(--glass-edge-bottom);
 }
 
 .glass-t1 {
   box-shadow:
-    var(--glass-cast-lg),
-    var(--glass-rim-top),
-    var(--glass-edge-bottom);
+    var(--glass-cast-lg), var(--glass-rim-top), var(--glass-edge-bottom);
 }
 
 /* Borde refractivo en degradado: el gradiente se pinta solo en el anillo que
@@ -362,9 +358,7 @@
 .glass-hover:hover {
   transform: translateY(-3px) scale(1.005);
   box-shadow:
-    var(--glass-shadow-hover),
-    var(--glass-rim-top),
-    var(--glass-edge-bottom);
+    var(--glass-shadow-hover), var(--glass-rim-top), var(--glass-edge-bottom);
 }
 
 /* ---------- respuesta táctil (lib/ripple.ts, solo ventana principal) ---- */
@@ -984,7 +978,10 @@ input:focus-visible + .fuwa-sw {
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
-  background: conic-gradient(var(--fuwa-mint) calc(var(--v) * 1%), var(--sw-off) 0);
+  background: conic-gradient(
+    var(--fuwa-mint) calc(var(--v) * 1%),
+    var(--sw-off) 0
+  );
   box-shadow: 0 8px 20px -10px rgba(8, 120, 100, 0.4);
   touch-action: none;
   user-select: none;

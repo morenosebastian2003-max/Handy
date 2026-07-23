@@ -477,7 +477,7 @@ fn negated_facts(
             if previous_source
                 .chars()
                 .last()
-                .is_some_and(|c| matches!(c, '.' | '!' | '?'))
+                .is_some_and(|c| matches!(c, ',' | ';' | ':' | '.' | '!' | '?'))
             {
                 break;
             }
@@ -1791,11 +1791,12 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 mod tests {
     use super::{
         build_legacy_prompt, build_system_prompt, build_transcript_user_message,
-        complete_unless_cancelled, is_blank_transcription, should_retry_without_schema,
-        should_use_streaming_overlay, structured_transcription_candidate,
-        validate_post_processed_text,
+        complete_unless_cancelled, is_blank_transcription, negated_facts, normalize_fidelity_token,
+        should_retry_without_schema, should_use_streaming_overlay,
+        structured_transcription_candidate, validate_post_processed_text,
     };
     use crate::settings::OverlayStyle;
+    use std::collections::HashSet;
     use std::future;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
@@ -1976,6 +1977,20 @@ mod tests {
             validate_post_processed_text(original, candidate, &[]),
             Err("response changed the negation of a protected fact")
         );
+    }
+
+    #[test]
+    fn contrastive_comma_ends_negation_scope() {
+        let tokens: Vec<(&str, String)> = "Repito, no 3, 2."
+            .split_whitespace()
+            .filter_map(|token| {
+                normalize_fidelity_token(token).map(|normalized| (token, normalized))
+            })
+            .collect();
+        let facts = negated_facts(&tokens, &HashSet::new());
+
+        assert!(facts.contains("3"));
+        assert!(!facts.contains("2"));
     }
 
     #[test]
